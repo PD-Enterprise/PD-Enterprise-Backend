@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { db } from './db'
-import { posts, users } from './db/schema'
+import { posts } from './db/schema'
+import { cors } from "hono/cors"
 
 const app = new Hono()
 
@@ -20,10 +21,11 @@ app.onError((err, c) => {
         error: err,
     })
 })
+app.use("/pd-enterprise/*", cors())
 app.get("/pd-enterprise/blog/posts", async (c) => {
     try {
         const allPosts = await db.select().from(posts);
-        return c.json({ allPosts })
+        return c.json({ status: 200, data: allPosts })
     } catch (error) {
         return c.json({ error })
     }
