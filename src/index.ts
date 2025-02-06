@@ -1,14 +1,11 @@
 import { Hono } from 'hono'
 import { db } from './db'
-import { users } from './db/schema'
+import { posts, users } from './db/schema'
 
 const app = new Hono()
 
 app.get('/', (c) => {
-    return c.json({
-        status: 200,
-        message: "This is the backend-service for PD Enterprise.",
-    } as const)
+    return c.text("This is the backend-service for PD Enterprise.")
 })
 app.notFound((c) => {
     return c.json({
@@ -23,9 +20,13 @@ app.onError((err, c) => {
         error: err,
     })
 })
-app.get("/users", async (c) => {
-    const userList = await main()
-    return c.json(userList)
+app.get("/pd-enterprise/blog/posts", async (c) => {
+    try {
+        const allPosts = await db.select().from(posts);
+        return c.json({ allPosts })
+    } catch (error) {
+        return c.json({ error })
+    }
 })
 
 // HTTP Methods
@@ -35,14 +36,3 @@ app.put('/', (c) => c.text('PUT /'))
 app.delete('/', (c) => c.text('DELETE /'))
 
 export default app
-
-async function main() {
-    try {
-        const allUsers = await db.select().from(users);
-        console.log(allUsers)
-        return allUsers
-    } catch (error) {
-        console.log(error)
-        return error
-    }
-}
