@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { db } from './db'
 import { posts } from './db/schema'
 import { cors } from "hono/cors"
+import { eq } from "drizzle-orm"
 
 const app = new Hono()
 
@@ -30,7 +31,15 @@ app.get("/pd-enterprise/blog/posts", async (c) => {
         return c.json({ error })
     }
 })
-
+app.get("/pd-enterprise/blog/posts/:slug", async (c) => {
+    const slug = c.req.param("slug");
+    try {
+        const post = await db.select().from(posts).where(eq(posts.slug, slug))
+        return c.json({ status: 200, data: post })
+    } catch (error) {
+        return c.json({ error })
+    }
+})
 // HTTP Methods
 app.get('/', (c) => c.text('GET /'))
 app.post('/', (c) => c.text('POST /'))
