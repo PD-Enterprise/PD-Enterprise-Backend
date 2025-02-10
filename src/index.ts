@@ -8,6 +8,8 @@ import { validateRoute } from './utils/validateRoute' // Import function for val
 import { checkUserExits } from './utils/checkUserExits'
 import { newCookie } from './utils/newCookie'
 import stringHash from 'string-hash'
+import { users } from '../drizzle/schema'
+import { newUser } from './types'
 
 // Create a new Hono application instance
 const app = new Hono()
@@ -23,7 +25,9 @@ app.notFound((c) => {
     return c.json({
         status: 404, // Status code
         message: "Not Found", // Error message
-    }) // Return a JSON response
+        data: null,
+        error: null,
+    })
 })
 // Define a route for handling errors
 app.onError((err, c) => {
@@ -31,6 +35,7 @@ app.onError((err, c) => {
     return c.json({
         status: 500, // Status code
         message: "Internal Server Error", // Error message
+        data: null,
         error: err, // The error object
     }) // Return a JSON response
 })
@@ -44,14 +49,14 @@ app.get("/pd-enterprise/blog/posts", async (c) => {
         try {
             const allPosts = await db.select().from(posts); // Fetch all posts from the database
             c.status(200); // Set the HTTP status code to 200 (OK)
-            return c.json({ status: 200, data: allPosts }) // Return a JSON response with the posts data
+            return c.json({ status: 200, message: "Posts Data found.", data: allPosts, error: null }) // Return a JSON response with the posts data
         } catch (error) {
             c.status(500); // Set the HTTP status code to 500 (Internal Server Error)
-            return c.json({ error }) // Return a JSON response with the error
+            return c.json({ status: 500, message: "There was an error", data: null, error }) // Return a JSON response with the error
         }
     } else {
         c.status(500)
-        return c.json({ status: 500, message: "Origin not allowed" })
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
 // Define a route for fetching a single blog post by slug
@@ -61,18 +66,54 @@ app.get("/pd-enterprise/blog/posts/:slug", async (c) => {
         try {
             const post = await db.select().from(posts).where(eq(posts.slug, slug))
             c.status(200);
-            return c.json({ status: 200, data: post })
+            return c.json({ status: 200, message: "Post data found.", data: post, error: null })
         } catch (error) {
             c.status(500);
-            return c.json({ error })
+            return c.json({ status: 500, message: "There was error", data: null, error })
         }
     } else {
         c.status(500)
-        return c.json({ status: 500, message: "Origin not allowed" })
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
 
 // USER MANAGEMENT API ROUTES
+app.post("/users/register", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        try {
+            const userExists = await checkUserExits(body.email)
+            if (userExists) {
+                c.status(403)
+                return c.json({ status: 403, message: "User already exists", data: null, error: null })
+            }
+            const headers = await newCookie("session_id")
+            const cookieId = headers["Set-cookie"].split("=")[1].split(";")[0]
+
+            const query = await db.insert(users).values({
+                email: body.email,
+                userpassword: stringHash(body.password),
+                username: body.username,
+                sessionId: cookieId,
+                membership: "tier-1",
+                provider: "email"
+            })
+            if (query) {
+                c.status(201)
+                return c.json({ status: 201, message: "User created successfully.", data: null, error: null })
+            }
+            c.status(500)
+            return c.json({ status: 500, message: "User creation failed", data: null, error: null })
+        } catch (error) {
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    } else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
+
 
 // CNOTES API ROUTES
 
