@@ -1,21 +1,17 @@
 import { Hono } from 'hono' // Import Hono framework for building web applications
 import { db } from './db' // Import database connection
-import { posts } from './db/schema' // Import posts schema from database
+import { posts } from './db/schema' // Import posts and users schema from database
 import { cors } from "hono/cors" // Import CORS middleware for handling cross-origin requests
 import { eq } from "drizzle-orm" // Import equality function for query building
 import { allowedUrls } from './allowedURLs' // Import list of allowed URLs for CORS
+import { validateRoute } from './utils/validateRoute' // Import function for validating route
+import { checkUserExits } from './utils/checkUserExits'
+import { newCookie } from './utils/newCookie'
+import stringHash from 'string-hash'
+import { auth } from "./utils/auth"
 
 // Create a new Hono application instance
 const app = new Hono()
-function validateRoute(url: string) {
-    if (allowedUrls.includes(url)) {
-        return true
-    } else {
-
-        return false
-    }
-}
-
 
 // Define a route for the root URL
 app.get('/', (c) => {
@@ -39,9 +35,13 @@ app.onError((err, c) => {
         error: err, // The error object
     }) // Return a JSON response
 })
-// Apply CORS middleware to the /pd-enterprise/* routes
-app.use("/pd-enterprise/*", cors())
+// Apply CORS middleware to all routes
+app.use("*", cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+}))
 
+// PD ENTERPRISE API ROUTES
 // Define a route for fetching all blog posts
 app.get("/pd-enterprise/blog/posts", async (c) => {
     if (validateRoute(c.req.header("origin") || '')) {
@@ -55,7 +55,7 @@ app.get("/pd-enterprise/blog/posts", async (c) => {
         }
     } else {
         c.status(500)
-        return c.json({ status: 500, message: "Origin not allowed", allowedUrls })
+        return c.json({ status: 500, message: "Origin not allowed" })
     }
 })
 // Define a route for fetching a single blog post by slug
@@ -72,9 +72,23 @@ app.get("/pd-enterprise/blog/posts/:slug", async (c) => {
         }
     } else {
         c.status(500)
-        return c.json({ status: 500, message: "Origin not allowed", allowedUrls })
+        return c.json({ status: 500, message: "Origin not allowed" })
     }
 })
+
+// USER MANAGEMENT API ROUTES
+app.on(["POST", "GET"], "/api/auth/**", async (c) => {
+    try {
+        const response = await auth.handler(c.req.raw)
+        return response;
+    } catch (error) {
+        c.status(500)
+        return c.json({ error })
+    }
+})
+
+// CNOTES API ROUTES
+
 
 // Export the application instance
 export default app
