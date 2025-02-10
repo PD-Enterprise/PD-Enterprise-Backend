@@ -8,7 +8,6 @@ import { validateRoute } from './utils/validateRoute' // Import function for val
 import { checkUserExits } from './utils/checkUserExits'
 import { newCookie } from './utils/newCookie'
 import stringHash from 'string-hash'
-import { auth } from "./utils/auth"
 
 // Create a new Hono application instance
 const app = new Hono()
@@ -36,10 +35,7 @@ app.onError((err, c) => {
     }) // Return a JSON response
 })
 // Apply CORS middleware to all routes
-app.use("*", cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-}))
+app.use("*", cors())
 
 // PD ENTERPRISE API ROUTES
 // Define a route for fetching all blog posts
@@ -77,15 +73,6 @@ app.get("/pd-enterprise/blog/posts/:slug", async (c) => {
 })
 
 // USER MANAGEMENT API ROUTES
-app.on(["POST", "GET"], "/api/auth/**", async (c) => {
-    try {
-        const response = await auth.handler(c.req.raw)
-        return response;
-    } catch (error) {
-        c.status(500)
-        return c.json({ error })
-    }
-})
 
 // CNOTES API ROUTES
 
