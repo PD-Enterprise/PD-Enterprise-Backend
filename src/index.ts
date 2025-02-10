@@ -3,13 +3,11 @@ import { db } from './db' // Import database connection
 import { posts } from './db/schema' // Import posts and users schema from database
 import { cors } from "hono/cors" // Import CORS middleware for handling cross-origin requests
 import { eq } from "drizzle-orm" // Import equality function for query building
-import { allowedUrls } from './allowedURLs' // Import list of allowed URLs for CORS
 import { validateRoute } from './utils/validateRoute' // Import function for validating route
 import { checkUserExits } from './utils/checkUserExits'
 import { newCookie } from './utils/newCookie'
 import stringHash from 'string-hash'
 import { users } from '../drizzle/schema'
-import { newUser } from './types'
 
 // Create a new Hono application instance
 const app = new Hono()
@@ -81,15 +79,20 @@ app.get("/pd-enterprise/blog/posts/:slug", async (c) => {
 app.post("/users/register", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
         const body = await c.req.json()
+        if (!body.username || !body.email || !body.password) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
         try {
             const userExists = await checkUserExits(body.email)
             if (userExists) {
                 c.status(403)
                 return c.json({ status: 403, message: "User already exists", data: null, error: null })
             }
-            const headers = await newCookie("session_id")
+            const headers = newCookie("session_id")
             const cookieId = headers["Set-cookie"].split("=")[1].split(";")[0]
 
+            // @ts-expect-error
             const query = await db.insert(users).values({
                 email: body.email,
                 userpassword: stringHash(body.password),
@@ -100,10 +103,41 @@ app.post("/users/register", async (c) => {
             })
             if (query) {
                 c.status(201)
-                return c.json({ status: 201, message: "User created successfully.", data: null, error: null })
+                return c.json({ status: 201, message: "User created successfully.", data: null, error: null, headers: headers })
             }
             c.status(500)
             return c.json({ status: 500, message: "User creation failed", data: null, error: null })
+        } catch (error) {
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    } else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
+app.post("/users/login", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        if (!body.email || !body.password) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
+        try {
+            const userExists = await checkUserExits(body.email)
+            if (!userExists) {
+                c.status(404)
+                return c.json({ status: 404, message: "User does not exist", data: null, error: null })
+            }
+            const userData = await db.select().from(users).where(eq(users.email, body.email))
+            if (userData[0].userpassword !== stringHash(body.password).toString()) {
+                c.status(401)
+                return c.json({ status: 401, message: "Invalid Credentials", data: null, error: null })
+            }
+            const headers = newCookie("session_id")
+            c.header("Set-Cookie", headers["Set-cookie"])
+            c.status(200)
+            return c.json({ status: 200, message: "User Login Successfull.", data: userData[0], error: null, headers: headers })
         } catch (error) {
             c.status(500)
             return c.json({ status: 500, message: "There was an error", data: null, error })
