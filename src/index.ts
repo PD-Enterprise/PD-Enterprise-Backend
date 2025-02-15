@@ -102,8 +102,12 @@ app.post("/users/register", async (c) => {
                 provider: "email"
             })
             if (query) {
-                c.status(201)
-                return c.json({ status: 201, message: "User created successfully.", data: null, error: null, headers: headers })
+                const updateSession = await db.update(users).set({ sessionId: cookieID }).where(eq(users.email, email))
+                if (updateSession) {
+                    c.header("Set-Cookie", headers["Set-cookie"])
+                    c.status(201)
+                    return c.json({ status: 201, message: "User created successfully.", data: null, error: null, headers: headers })
+                }
             }
             c.status(500)
             return c.json({ status: 500, message: "User creation failed", data: null, error: null })
@@ -123,22 +127,31 @@ app.post("/users/login", async (c) => {
             c.status(400)
             return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
         }
+        const email = body.email
+        const password = body.password
         try {
-            const userExists = await checkUserExits(body.email)
+            const userExists = await checkUserExits(email)
             if (!userExists) {
                 c.status(404)
                 return c.json({ status: 404, message: "User does not exist", data: null, error: null })
             }
-            const userData = await db.select().from(users).where(eq(users.email, body.email))
-            if (userData[0].userpassword !== stringHash(body.password).toString()) {
+            const headers = newCookie("session_id")
+            const cookieID = headers["Set-cookie"].split("=")[1].split(";")[0]
+           
+            const userData = await db.select().from(users).where(eq(users.email, email))
+            if (userData[0].userpassword !== stringHash(password).toString()) {
                 c.status(401)
                 return c.json({ status: 401, message: "Invalid Credentials", data: null, error: null })
             }
-            const headers = newCookie("session_id")
-            c.header("Set-Cookie", headers["Set-cookie"])
-            c.status(200)
-            return c.json({ status: 200, message: "User Login Successfull.", data: userData[0], error: null, headers: headers })
+
+            const updateSession = await db.update(users).set({ sessionId: cookieID }).where(eq(users.email, email))
+            if (updateSession) {
+                c.header("Set-Cookie", headers["Set-cookie"])
+                c.status(200)
+                return c.json({ status: 200, message: "User Login Successfull.", data: userData[0], error: null, headers: headers })
+            }
         } catch (error) {
+            console.log(error.message)
             c.status(500)
             return c.json({ status: 500, message: "There was an error", data: null, error })
         }
@@ -147,7 +160,38 @@ app.post("/users/login", async (c) => {
         return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
+app.post("/users/renew_session", async(c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        if (!body.sessionId) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
+        const sessionId = body.sessionId
+        try {
+            const userData = await db.select({email: users.email}).from(users).where(users.session_id, sessionId)
 
+            if (userData[0]) {
+                const headers = newCookie("session_id")
+                const cookieID = headers["Set-cookie"].split("=")[1].split(";")[0]
+
+                const updateSession = await db.update(users).set({ sessionId: cookieID }).where(eq(users.email, userData[0].email))
+                if (updateSession){
+                    c.header("Set-Cookie", headers["Set-cookie"])
+                    c.status(200)
+                    return c.json({ status: 200, message: "Session renewed successfully.", data: userData[0], error: null, headers: headers })
+                }
+            }
+        } catch (error) {
+            console.log(error.message)
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    } else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
 
 // CNOTES API ROUTES
 
