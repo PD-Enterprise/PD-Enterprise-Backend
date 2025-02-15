@@ -90,14 +90,13 @@ app.post("/users/register", async (c) => {
                 return c.json({ status: 403, message: "User already exists", data: null, error: null })
             }
             const headers = newCookie("session_id")
-            const cookieId = headers["Set-cookie"].split("=")[1].split(";")[0]
-
+            const cookieID = headers["Set-cookie"].split("=")[1].split(";")[0]
             // @ts-expect-error
             const query = await db.insert(users).values({
                 email: body.email,
                 userpassword: stringHash(body.password),
                 username: body.username,
-                sessionId: cookieId,
+                sessionId: cookieID,
                 membership: "tier-1",
                 provider: "email"
             })
@@ -108,10 +107,12 @@ app.post("/users/register", async (c) => {
                     c.status(201)
                     return c.json({ status: 201, message: "User created successfully.", data: null, error: null, headers: headers })
                 }
+            } else {
+                c.status(500)
+                return c.json({ status: 500, message: "User creation failed", data: null, error: null })
             }
-            c.status(500)
-            return c.json({ status: 500, message: "User creation failed", data: null, error: null })
         } catch (error) {
+            console.log(error.message)
             c.status(500)
             return c.json({ status: 500, message: "There was an error", data: null, error })
         }
