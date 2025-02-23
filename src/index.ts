@@ -1,13 +1,14 @@
 import { Hono } from 'hono' // Import Hono framework for building web applications
-import { db } from './db' // Import database connection
-import { posts } from './db/schema' // Import posts and users schema from database
+import { db } from './db/users' // Import database connection
+import { posts, users } from './db/users/schema' // Import posts and users schema from database
 import { cors } from "hono/cors" // Import CORS middleware for handling cross-origin requests
 import { eq } from "drizzle-orm" // Import equality function for query building
 import { validateRoute } from './utils/validateRoute' // Import function for validating route
 import { checkUserExits } from './utils/checkUserExits'
 import { newCookie } from './utils/newCookie'
 import stringHash from 'string-hash'
-import { users } from '../drizzle/schema'
+import { notes } from "./db/cnotes/schema"
+import { notesdb } from './db/cnotes'
 
 // Create a new Hono application instance
 const app = new Hono()
@@ -100,8 +101,9 @@ app.post("/users/register", async (c) => {
                 membership: "tier-1",
                 provider: "email"
             })
+            const email = body.email
             if (query) {
-                const updateSession = await db.update(users).set({ sessionId: cookieID }).where(eq(users.email, email))
+                const updateSession = await db.update(users).set({ session_id: cookieID }).where(eq(users.email, email))
                 if (updateSession) {
                     c.header("Set-Cookie", headers["Set-cookie"])
                     c.status(201)
@@ -112,6 +114,7 @@ app.post("/users/register", async (c) => {
                 return c.json({ status: 500, message: "User creation failed", data: null, error: null })
             }
         } catch (error) {
+            // @ts-expect-error
             console.log(error.message)
             c.status(500)
             return c.json({ status: 500, message: "There was an error", data: null, error })
@@ -152,6 +155,7 @@ app.post("/users/login", async (c) => {
                 return c.json({ status: 200, message: "User Login Successfull.", data: userData[0], error: null, headers: headers })
             }
         } catch (error) {
+            // @ts-expect-error
             console.log(error.message)
             c.status(500)
             return c.json({ status: 500, message: "There was an error", data: null, error })
@@ -183,6 +187,7 @@ app.post("/users/renew_session", async (c) => {
                 }
             }
         } catch (error) {
+            // @ts-expect-error
             console.log(error.message)
             c.status(500)
             return c.json({ status: 500, message: "There was an error", data: null, error })
@@ -197,8 +202,18 @@ app.post("/users/renew_session", async (c) => {
 app.post("/notes/notes", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
         const body = await c.req.json()
-        console.log(body)
-        return c.json({ status: 200, message: "Some note data", data: null, error: null })
+        if (!body.email) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
+        const email = body.email
+        try {
+            const getNotes = await notesdb.select().from(notes).where(eq(notes.user_email, email))
+            return c.json({ status: 200, message: "Notes found successfully", data: getNotes, error: null })
+        } catch (error) {
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
     } else {
         c.status(500)
         return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })

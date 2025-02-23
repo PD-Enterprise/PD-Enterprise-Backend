@@ -1,5 +1,5 @@
-import { db } from "../db"
-import { users } from "../db/schema"
+import { db } from "../db/users"
+import { users } from "../db/users/schema"
 import { eq } from "drizzle-orm"
 
 async function checkUserExits(email: string) {
