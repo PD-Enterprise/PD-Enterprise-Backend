@@ -138,14 +138,14 @@ app.post("/users/login", async (c) => {
             }
             const headers = newCookie("session_id")
             const cookieID = headers["Set-cookie"].split("=")[1].split(";")[0]
-           
+
             const userData = await db.select().from(users).where(eq(users.email, email))
             if (userData[0].userpassword !== stringHash(password).toString()) {
                 c.status(401)
                 return c.json({ status: 401, message: "Invalid Credentials", data: null, error: null })
             }
 
-            const updateSession = await db.update(users).set({ sessionId: cookieID }).where(eq(users.email, email))
+            const updateSession = await db.update(users).set({ session_id: cookieID }).where(eq(users.email, email))
             if (updateSession) {
                 c.header("Set-Cookie", headers["Set-cookie"])
                 c.status(200)
@@ -161,7 +161,7 @@ app.post("/users/login", async (c) => {
         return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
-app.post("/users/renew_session", async(c) => {
+app.post("/users/renew_session", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
         const body = await c.req.json()
         if (!body.sessionId) {
@@ -170,14 +170,13 @@ app.post("/users/renew_session", async(c) => {
         }
         const sessionId = body.sessionId
         try {
-            const userData = await db.select({email: users.email}).from(users).where(users.session_id, sessionId)
-
+            const userData = await db.select({ email: users.email }).from(users).where(eq(users.session_id, sessionId))
             if (userData[0]) {
                 const headers = newCookie("session_id")
                 const cookieID = headers["Set-cookie"].split("=")[1].split(";")[0]
 
-                const updateSession = await db.update(users).set({ sessionId: cookieID }).where(eq(users.email, userData[0].email))
-                if (updateSession){
+                const updateSession = await db.update(users).set({ session_id: cookieID }).where(eq(users.email, userData[0].email))
+                if (updateSession) {
                     c.header("Set-Cookie", headers["Set-cookie"])
                     c.status(200)
                     return c.json({ status: 200, message: "Session renewed successfully.", data: userData[0], error: null, headers: headers })
@@ -195,7 +194,16 @@ app.post("/users/renew_session", async(c) => {
 })
 
 // CNOTES API ROUTES
-
+app.post("/notes/notes", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        console.log(body)
+        return c.json({ status: 200, message: "Some note data", data: null, error: null })
+    } else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
 
 // Export the application instance
 export default app

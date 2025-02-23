@@ -25,7 +25,7 @@ export const users = pgTable("users", {
 	email: varchar({ length: 255 }).notNull(),
 	userpassword: varchar({ length: 255 }).notNull(),
 	username: varchar({ length: 255 }).notNull(),
-	sessionId: varchar("session_id", { length: 255 }).notNull(),
+	session_id: varchar("session_id", { length: 255 }).notNull(),
 	membership: varchar({ length: 255 }),
 	provider: varchar({ length: 255 }),
 }, (table) => [
