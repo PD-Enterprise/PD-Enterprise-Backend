@@ -208,9 +208,10 @@ app.post("/notes/notes", async (c) => {
         }
         const email = body.email
         try {
-            const getNotes = await notesdb.select().from(notes).where(eq(notes.user_email, email))
+            const getNotes = await notesdb.select().from(notes).where(eq(notes.userEmail, email))
             return c.json({ status: 200, message: "Notes found successfully", data: getNotes, error: null })
         } catch (error) {
+            console.error(error)
             c.status(500)
             return c.json({ status: 500, message: "There was an error", data: null, error })
         }

@@ -5,7 +5,7 @@ CREATE TABLE "notes" (
 	"note_id" serial PRIMARY KEY NOT NULL,
 	"title" varchar(255) NOT NULL,
 	"slug" varchar(255) NOT NULL,
-	"note_content" text NOT NULL,
+	"notecontent" text NOT NULL,
 	"subject" varchar(255) NOT NULL,
 	"grade" integer NOT NULL,
 	"user_email" varchar(255) NOT NULL,

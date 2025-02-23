@@ -7,7 +7,7 @@ export const notes = pgTable("notes", {
 	noteId: serial("note_id").primaryKey().notNull(),
 	title: varchar({ length: 255 }).notNull(),
 	slug: varchar({ length: 255 }).notNull(),
-	noteContent: text("note_content").notNull(),
+	notescontent: text().notNull(),
 	subject: varchar({ length: 255 }).notNull(),
 	grade: integer().notNull(),
 	userEmail: varchar("user_email", { length: 255 }).notNull(),

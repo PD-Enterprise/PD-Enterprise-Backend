@@ -26,8 +26,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "note_content": {
-          "name": "note_content",
+        "notecontent": {
+          "name": "notecontent",
           "type": "text",
           "primaryKey": false,
           "notNull": true
