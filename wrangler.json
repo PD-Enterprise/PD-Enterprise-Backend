@@ -2,13 +2,14 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "backend-service",
   "main": "src/index.ts",
-  "compatibility_date": "2025-02-06"
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
+  "compatibility_date": "2025-02-06",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "vars": {
+    "DATABASE_URL": "postgresql://neondb_owner:6HBpU3GFrvwN@ep-broad-surf-a1mc50uh.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
+    "CNOTES_DB_URL": "postgresql://Notes_owner:ciPWTfCz0G3w@ep-bold-sunset-a191jth3-pooler.ap-southeast-1.aws.neon.tech/Notes?sslmode=require",
+  }
   // "kv_namespaces": [
   //   {
   //     "binding": "MY_KV_NAMESPACE",

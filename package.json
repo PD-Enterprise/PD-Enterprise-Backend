@@ -5,6 +5,7 @@
     "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.22.0",
     "@neondatabase/serverless": "^0.10.4",
     "@types/node": "^22.13.1",
     "cookie": "^1.0.2",

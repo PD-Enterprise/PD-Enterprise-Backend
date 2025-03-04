@@ -1,15 +1,19 @@
+/* The above code is a TypeScript application that uses the Hono framework to build web applications.
+It includes routes for handling various API requests related to PD Enterprise, user management, and
+CNotes. Here is a summary of what the code is doing: */
 import { Hono } from 'hono' // Import Hono framework for building web applications
-import { db } from './db/users' // Import database connection
-import { posts, users } from './db/users/schema' // Import posts and users schema from database
 import { cors } from "hono/cors" // Import CORS middleware for handling cross-origin requests
 import { eq } from "drizzle-orm" // Import equality function for query building
 import { validateRoute } from './utils/validateRoute' // Import function for validating route
 import { checkUserExits } from './utils/checkUserExits'
 import { newCookie } from './utils/newCookie'
 import stringHash from 'string-hash'
-import { notes } from "./db/cnotes/schema"
+import { db } from './db/users' // Import database connection
+import { apikeys, posts, users } from './db/users/schema' // Import posts and users schema from database
 import { notesdb } from './db/cnotes'
+import { notes } from "./db/cnotes/schema"
 
+// VARIABLES
 // Create a new Hono application instance
 const app = new Hono()
 
@@ -187,8 +191,7 @@ app.post("/users/renew_session", async (c) => {
                 }
             }
         } catch (error) {
-            // @ts-expect-error
-            console.log(error.message)
+            console.log(error)
             c.status(500)
             return c.json({ status: 500, message: "There was an error", data: null, error })
         }
@@ -210,6 +213,34 @@ app.post("/notes/notes", async (c) => {
         try {
             const getNotes = await notesdb.select().from(notes).where(eq(notes.userEmail, email))
             return c.json({ status: 200, message: "Notes found successfully", data: getNotes, error: null })
+        } catch (error) {
+            console.error(error)
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    } else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
+app.post("/notes/note/text/:slug", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        try {
+            if (!body.slug) {
+                c.status(400)
+                return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+            }
+            const email = body.email
+            const slug = body.slug
+            const userExists = await checkUserExits(body.email)
+            if (!userExists) {
+                c.status(404)
+                return c.json({ status: 404, message: "User doesn't exist", data: null, error: null })
+            }
+
+            const note = await notesdb.select().from(notes).where(eq(notes.slug, slug))
+            return c.json({ status: 200, message: "Successfully found note", data: note, error: null })
         } catch (error) {
             console.error(error)
             c.status(500)

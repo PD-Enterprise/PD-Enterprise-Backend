@@ -757,6 +757,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@google/generative-ai@npm:^0.22.0":
+  version: 0.22.0
+  resolution: "@google/generative-ai@npm:0.22.0"
+  checksum: 10c0/2bf6ba5d6960ccd4f8ae5212596907d56a8f3837a533ca367d6674d2ea0308ddd7d081558e5923fc139930640061702a1af2fb5604248790fd276e97ef989183
+  languageName: node
+  linkType: hard
+
 "@isaacs/cliui@npm:^8.0.2":
   version: 8.0.2
   resolution: "@isaacs/cliui@npm:8.0.2"
@@ -2072,6 +2079,7 @@ __metadata:
   resolution: "pd-enterprise-backend@workspace:."
   dependencies:
     "@cloudflare/workers-types": "npm:^4.20250109.0"
+    "@google/generative-ai": "npm:^0.22.0"
     "@neondatabase/serverless": "npm:^0.10.4"
     "@types/node": "npm:^22.13.1"
     "@types/string-hash": "npm:^1"
