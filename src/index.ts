@@ -11,12 +11,12 @@ import { posts } from './db/users/schema' // Import posts and users schema from 
 import { notesdb } from './db/cnotes'
 import { notes } from "./db/cnotes/schema"
 import Groq from 'groq-sdk'
+import dotenv from 'dotenv'
+dotenv.config() // Load environment variables from .env file
 
 // VARIABLES
 // Create a new Hono application instance
 const app = new Hono()
-const apiKey = process.env.GROQ_API_KEY || 'default_api_key'; // Provide a default or handle the error
-const groq = new Groq({ apiKey })
 let chatHistory: any = []
 const initial_message = {
     "role": "user",
@@ -24,6 +24,18 @@ const initial_message = {
 Also please return your answer in HTML format, with proper tags.`,
 }
 chatHistory = [...chatHistory, initial_message]
+
+// FUNCTIONS
+async function chatWithHistory(userMessage: string, modal: string, groq: any) {
+    chatHistory = [...chatHistory, { role: "user", content: userMessage }]
+    const chatCompletion = await groq.chat.completions.create({
+        messages: chatHistory,
+        model: modal
+    })
+    const response = chatCompletion.choices[0]?.message?.content
+    chatHistory = [...chatHistory, { role: "assistant", content: response }]
+    return response
+}
 
 // ROUTES
 // Define a route for the root URL
@@ -129,6 +141,34 @@ app.post("/notes/note/text/:slug", async (c) => {
 
             const note = await notesdb.select().from(notes).where(eq(notes.slug, slug))
             return c.json({ status: 200, message: "Successfully found note", data: note, error: null })
+        } catch (error) {
+            console.error(error)
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    } else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
+
+// GRADE AI ROUTES
+app.post("/ai/chat/:modal", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        // @ts-expect-error
+        const apiKey = c.env.GROQ_API_KEY
+        const groq = new Groq({ apiKey })
+
+        const modal = c.req.param("modal")
+        const body = await c.req.json()
+        if (!body.prompt) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
+        const prompt = body.prompt
+        try {
+            const chatCompletion = await chatWithHistory(prompt, modal, groq)
+            return c.json({ status: 200, message: "Successfully found note", data: chatCompletion, error: null })
         } catch (error) {
             console.error(error)
             c.status(500)
