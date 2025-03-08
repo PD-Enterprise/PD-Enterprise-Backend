@@ -6,17 +6,26 @@ import { cors } from "hono/cors" // Import CORS middleware for handling cross-or
 import { eq } from "drizzle-orm" // Import equality function for query building
 import { validateRoute } from './utils/validateRoute' // Import function for validating route
 import { checkUserExits } from './utils/checkUserExits'
-import { newCookie } from './utils/newCookie'
-import stringHash from 'string-hash'
 import { db } from './db/users' // Import database connection
-import { apikeys, posts, users } from './db/users/schema' // Import posts and users schema from database
+import { posts } from './db/users/schema' // Import posts and users schema from database
 import { notesdb } from './db/cnotes'
 import { notes } from "./db/cnotes/schema"
+import Groq from 'groq-sdk'
 
 // VARIABLES
 // Create a new Hono application instance
 const app = new Hono()
+const apiKey = process.env.GROQ_API_KEY || 'default_api_key'; // Provide a default or handle the error
+const groq = new Groq({ apiKey })
+let chatHistory: any = []
+const initial_message = {
+    "role": "user",
+    "content": `You are a Socratic Teacher. And I am your student. And please try to keep your replies as brief as possible, while explaining each topic carefully. Please Explain the topic in relation to the NCERT CBSE 2024 curriculum. Please don't give the answer directly but rather a starting point to get started, your job is to help the student find the answer in his/her own way.
+Also please return your answer in HTML format, with proper tags.`,
+}
+chatHistory = [...chatHistory, initial_message]
 
+// ROUTES
 // Define a route for the root URL
 app.get('/', (c) => {
     c.status(200)
