@@ -23,11 +23,5 @@ export const apikeys = pgTable("apikeys", {
 export const users = pgTable("users", {
 	id: serial().primaryKey().notNull(),
 	email: varchar({ length: 255 }).notNull(),
-	userpassword: varchar({ length: 255 }).notNull(),
-	username: varchar({ length: 255 }).notNull(),
-	session_id: varchar("session_id", { length: 255 }).notNull(),
 	membership: varchar({ length: 255 }),
-	provider: varchar({ length: 255 }),
-}, (table) => [
-	unique("users_userpassword_key").on(table.userpassword),
-]);
+});

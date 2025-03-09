@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm" // Import equality function for query building
 import { validateRoute } from './utils/validateRoute' // Import function for validating route
 import { checkUserExits } from './utils/checkUserExits'
 import { db } from './db/users' // Import database connection
-import { posts } from './db/users/schema' // Import posts and users schema from database
+import { posts, users } from './db/users/schema' // Import posts and users schema from database
 import { notesdb } from './db/cnotes'
 import { notes } from "./db/cnotes/schema"
 import Groq from 'groq-sdk'
@@ -100,6 +100,39 @@ app.get("/pd-enterprise/blog/posts/:slug", async (c) => {
         return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
+
+// USER MANAGEMENT API ROUTES
+app.post("/users/roles/get-role", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        if (!body.email) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
+        const email = body.email
+        try {
+            const role = await db.select({ role: users.membership }).from(users).where(eq(users.email, email))
+            if (role[0].role == null || undefined
+                || ""
+            ) {
+                const role = await db.update(users).set({ membership: "tier-1" }).where(eq(users.email, email))
+                return c.json({ status: 200, message: "Role updated successfully", data: "tier-1", error: null })
+            }
+            else {
+                return c.json({ status: 200, message: "Role found successfully", data: role[0].role, error: null })
+            }
+        } catch (error) {
+            console.error(error)
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    }
+    else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
+
 
 // CNOTES API ROUTES
 app.post("/notes/notes", async (c) => {
