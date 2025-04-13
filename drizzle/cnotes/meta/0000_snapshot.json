@@ -44,20 +44,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "user_email": {
-          "name": "user_email",
+        "email": {
+          "name": "email",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
         },
         "board": {
           "name": "board",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "school": {
-          "name": "school",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
@@ -81,9 +75,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "notes_slug_key": {
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "nullsNotDistinct": false,
           "name": "notes_slug_key"
         }

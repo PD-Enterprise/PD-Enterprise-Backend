@@ -10,9 +10,9 @@ export const notes = pgTable("notes", {
 	notescontent: text().notNull(),
 	subject: varchar({ length: 255 }).notNull(),
 	grade: integer().notNull(),
-	userEmail: varchar("user_email", { length: 255 }).notNull(),
+	email: varchar("email", { length: 255 }).notNull(),
 	board: varchar({ length: 255 }),
-	school: varchar({ length: 255 }),
+	// school: varchar({ length: 255 }),
 	dateCreated: date("date_created"),
 	dateUpdated: timestamp("date_updated", { mode: 'string' }).defaultNow(),
 }, (table) => [

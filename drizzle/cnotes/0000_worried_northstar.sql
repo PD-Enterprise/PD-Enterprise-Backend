@@ -8,9 +8,8 @@ CREATE TABLE "notes" (
 	"notecontent" text NOT NULL,
 	"subject" varchar(255) NOT NULL,
 	"grade" integer NOT NULL,
-	"user_email" varchar(255) NOT NULL,
+	"email" varchar(255) NOT NULL,
 	"board" varchar(255),
-	"school" varchar(255),
 	"date_created" date,
 	"date_updated" timestamp DEFAULT now(),
 	CONSTRAINT "notes_slug_key" UNIQUE("slug")
