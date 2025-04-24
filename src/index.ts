@@ -7,11 +7,12 @@ import { eq } from "drizzle-orm" // Import equality function for query building
 import { validateRoute } from './utils/validateRoute' // Import function for validating route
 import { checkUserExits } from './utils/checkUserExits'
 import { db } from './db/users' // Import database connection
-import { posts, users } from './db/users/schema' // Import posts and users schema from database
+import { users, posts } from './db/users/schema' // Import posts and users schema from database
 import { notesdb } from './db/cnotes'
-import { notes } from "./db/cnotes/schema"
+import { notes, noteUser } from "./db/cnotes/schema"
 import Groq from 'groq-sdk'
 import dotenv from 'dotenv'
+import { grade, subjects } from '../drizzle/cnotes/schema'
 dotenv.config() // Load environment variables from .env file
 
 // VARIABLES
@@ -60,7 +61,7 @@ app.notFound((c) => {
     c.status(404) // Set the HTTP status code to 404 (Not Found)
     return c.json({
         status: 404, // Status code
-        message: "Not Found", // Error message
+        message: "Endpoing not defined", // Error message
         data: null,
         error: null,
     })
@@ -146,6 +147,89 @@ app.post("/users/roles/get-role", async (c) => {
 })
 
 // CNOTES API ROUTES
+app.post("/notes/new-note/text", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        if (!body.email || !body.note) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
+        const email = body.email
+        const note = body.note
+
+        try {
+            let userId;
+            const existingUser = await notesdb.select({ id: noteUser.id })
+                .from(noteUser)
+                .where(eq(noteUser.email, email))
+                .limit(1)
+
+            if (existingUser.length > 0) {
+                userId = existingUser[0].id
+            } else {
+                const newUser = await notesdb.insert(noteUser)
+                    .values({ email })
+                    .returning({ id: noteUser.id });
+                userId = newUser[0].id;
+            }
+
+            let subjectId;
+            const existingSubject = await notesdb.select({ id: subjects.id })
+                .from(subjects)
+                .where(eq(subjects.subject, note.subject))
+                .limit(1)
+
+            if (existingSubject.length > 0) {
+                subjectId = existingSubject[0].id
+            } else {
+                const newSubject = await notesdb.insert(subjects)
+                    .values({ subject: note.subject })
+                    .returning({ id: subjects.id });
+                subjectId = newSubject[0].id;
+            }
+
+            let gradeId;
+            const existingGrade = await notesdb.select({ id: grade.id })
+                .from(grade)
+                .where(eq(grade.grade, note.grade))
+                .limit(1)
+            if (existingGrade.length > 0) {
+                gradeId = existingGrade[0].id
+            } else {
+                const newGrade = await notesdb.insert(grade)
+                    .values({ grade: note.grade })
+                    .returning({ id: grade.id });
+                gradeId = newGrade[0].id;
+            }
+
+            const newNoteQuery = await notesdb
+                .insert(notes)
+                .values({
+                    title: note.title,
+                    slug: note.title.replace(" ", "-").toLowerCase(),
+                    notescontent: note.content,
+                    board: note.board,
+                    dateCreated: note.dateCreated,
+                    dateUpdated: note.dateUpdated,
+                    email: userId,
+                    grade: gradeId,
+                    subject: subjectId,
+                }).returning({ insertedId: notes.noteId })
+
+            return c.json({ status: 200, message: "New note created successfully", data: newNoteQuery[0], error: null })
+
+        } catch (error) {
+            console.error(error)
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+
+    }
+    else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
 app.post("/notes/notes", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
         const body = await c.req.json()
@@ -155,7 +239,22 @@ app.post("/notes/notes", async (c) => {
         }
         const email = body.email
         try {
-            const getNotes = await notesdb.select().from(notes).where(eq(notes.email, email))
+            const getNotes = await notesdb
+                .select({
+                    id: notes.noteId,
+                    title: notes.title,
+                    slug: notes.slug,
+                    content: notes.notescontent,
+                    board: notes.board,
+                    dateCreated: notes.dateCreated,
+                    dateUpdated: notes.dateUpdated,
+                    email: noteUser.email,
+                    grade: notes.grade,
+                    subject: notes.subject,
+                })
+                .from(notes)
+                .innerJoin(noteUser, eq(notes.email, noteUser.id))
+                .where(eq(noteUser.email, email))
             return c.json({ status: 200, message: "Notes found successfully", data: getNotes, error: null })
         } catch (error) {
             console.error(error)
