@@ -294,6 +294,25 @@ app.post("/notes/note/text/:slug", async (c) => {
         return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
+app.get("/notes/note/:slug/delete", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const slug = c.req.param("slug")
+        try {
+            const deleteNote = await notesdb
+                .delete(notes)
+                .where(eq(notes.slug, slug))
+
+            return c.json({ status: 200, message: "Note deleted successfully", data: deleteNote, error: null })
+        } catch (error) {
+            console.error(error)
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    } else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
 
 // GRADE AI ROUTES
 app.post("/ai/chat/:modal", async (c) => {
