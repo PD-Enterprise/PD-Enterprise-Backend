@@ -294,6 +294,56 @@ app.post("/notes/note/text/:slug", async (c) => {
         return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
+
+app.post("/notes/note/text/:slug/update", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        console.log(body.data[0])
+        try {
+            if (
+                !body.data[0].noteId ||
+                !body.data[0].title ||
+                !body.data[0].slug ||
+                !body.data[0].notescontent ||
+                !body.data[0].board ||
+                !body.data[0].dateCreated ||
+                !body.data[0].dateUpdated ||
+                !body.data[0].email ||
+                !body.data[0].grade ||
+                !body.data[0].subject) {
+                c.status(400)
+                return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+            }
+
+            const updatedNote = await notesdb
+                .update(notes)
+                .set({
+                    title: body.data[0].title,
+                    slug: body.data[0].slug,
+                    notescontent: body.data[0].notescontent,
+                    board: body.data[0].board,
+                    dateCreated: body.data[0].dateCreated,
+                    dateUpdated: body.data[0].dateUpdated,
+                    email: body.data[0].email,
+                    grade: body.data[0].grade,
+                    subject: body.data[0].subject
+                })
+                .where(eq(notes.noteId, body.data[0].noteId))
+                .returning()
+
+            return c.json({ status: 200, message: "Note updated successfully", data: updatedNote[0], error: null })
+        } catch (error) {
+            console.error(error)
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    }
+    else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
+
 app.get("/notes/note/:slug/delete", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
         const slug = c.req.param("slug")
