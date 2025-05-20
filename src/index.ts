@@ -241,20 +241,19 @@ app.post("/notes/notes", async (c) => {
         try {
             const getNotes = await notesdb
                 .select({
-                    id: notes.noteId,
                     title: notes.title,
                     slug: notes.slug,
-                    content: notes.notescontent,
+                    notescontent: notes.notescontent,
                     board: notes.board,
                     dateCreated: notes.dateCreated,
-                    dateUpdated: notes.dateUpdated,
-                    email: noteUser.email,
                     grade: notes.grade,
-                    subject: notes.subject,
+                    subject: subjects.subject,
                 })
                 .from(notes)
+                .innerJoin(subjects, eq(notes.subject, subjects.id))
                 .innerJoin(noteUser, eq(notes.email, noteUser.id))
                 .where(eq(noteUser.email, email))
+            // console.log(getNotes)
             return c.json({ status: 200, message: "Notes found successfully", data: getNotes, error: null })
         } catch (error) {
             console.error(error)
@@ -266,22 +265,10 @@ app.post("/notes/notes", async (c) => {
         return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
-app.post("/notes/note/text/:slug", async (c) => {
+app.get("/notes/note/:slug", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
-        const body = await c.req.json()
+        const slug = await c.req.param("slug")
         try {
-            if (!body.slug) {
-                c.status(400)
-                return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
-            }
-            const email = body.email
-            const slug = body.slug
-            const userExists = await checkUserExits(body.email)
-            if (!userExists) {
-                c.status(404)
-                return c.json({ status: 404, message: "User doesn't exist", data: null, error: null })
-            }
-
             const note = await notesdb.select().from(notes).where(eq(notes.slug, slug))
             return c.json({ status: 200, message: "Successfully found note", data: note, error: null })
         } catch (error) {
