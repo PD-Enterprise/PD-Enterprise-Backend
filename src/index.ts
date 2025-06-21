@@ -3,7 +3,7 @@ It includes routes for handling various API requests related to PD Enterprise, u
 CNotes. Here is a summary of what the code is doing: */
 import { Hono } from 'hono' // Import Hono framework for building web applications
 import { cors } from "hono/cors" // Import CORS middleware for handling cross-origin requests
-import { eq } from "drizzle-orm" // Import equality function for query building
+import { eq, and } from "drizzle-orm" // Import equality function for query building
 import { validateRoute } from './utils/validateRoute' // Import function for validating route
 import { checkUserExits } from './utils/checkUserExits'
 import { db } from './db/users' // Import database connection
@@ -61,7 +61,7 @@ app.notFound((c) => {
     c.status(404) // Set the HTTP status code to 404 (Not Found)
     return c.json({
         status: 404, // Status code
-        message: "Endpoing not defined", // Error message
+        message: "Endpoint not defined", // Error message
         data: null,
         error: null,
     })
@@ -206,7 +206,7 @@ app.post("/notes/new-note/text", async (c) => {
                 .insert(notes)
                 .values({
                     title: note.title,
-                    slug: note.title.replace(" ", "-").toLowerCase(),
+                    slug: note.title.replaceAll(" ", "-").toLowerCase(),
                     notescontent: note.content,
                     board: note.board,
                     dateCreated: note.dateCreated,
@@ -246,11 +246,12 @@ app.post("/notes/notes", async (c) => {
                     notescontent: notes.notescontent,
                     board: notes.board,
                     dateCreated: notes.dateCreated,
-                    grade: notes.grade,
+                    grade: grade.grade,
                     subject: subjects.subject,
                 })
                 .from(notes)
                 .innerJoin(subjects, eq(notes.subject, subjects.id))
+                .innerJoin(grade, eq(notes.grade, grade.id))
                 .innerJoin(noteUser, eq(notes.email, noteUser.id))
                 .where(eq(noteUser.email, email))
             // console.log(getNotes)
@@ -268,9 +269,34 @@ app.post("/notes/notes", async (c) => {
 app.get("/notes/note/:slug", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
         const slug = await c.req.param("slug")
+        if (!slug) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing slug", data: null, error: null })
+        }
         try {
-            const note = await notesdb.select().from(notes).where(eq(notes.slug, slug))
-            return c.json({ status: 200, message: "Successfully found note", data: note, error: null })
+            const noteResult = await notesdb
+                .select({
+                    noteId: notes.noteId,
+                    title: notes.title,
+                    slug: notes.slug,
+                    notescontent: notes.notescontent,
+                    board: notes.board,
+                    dateCreated: notes.dateCreated,
+                    dateUpdated: notes.dateUpdated,
+                    grade: grade.grade,
+                    subject: subjects.subject,
+                })
+                .from(notes)
+                .innerJoin(subjects, eq(notes.subject, subjects.id))
+                .innerJoin(grade, eq(notes.grade, grade.id))
+                .where(eq(notes.slug, slug))
+
+            if (!noteResult || noteResult.length === 0) {
+                c.status(404)
+                return c.json({ status: 404, message: "Note not found", data: null, error: null })
+            }
+
+            return c.json({ status: 200, message: "Successfully found note", data: noteResult[0], error: null })
         } catch (error) {
             console.error(error)
             c.status(500)
@@ -284,39 +310,71 @@ app.get("/notes/note/:slug", async (c) => {
 
 app.post("/notes/note/text/:slug/update", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
+        const slug = c.req.param("slug")
         const body = await c.req.json()
-        console.log(body.data[0])
+        const { email, data: noteData } = body
+
+        if (!email || !noteData) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing email or note data", data: null, error: null })
+        }
+
         try {
             if (
-                !body.data[0].noteId ||
-                !body.data[0].title ||
-                !body.data[0].slug ||
-                !body.data[0].notescontent ||
-                !body.data[0].board ||
-                !body.data[0].dateCreated ||
-                !body.data[0].dateUpdated ||
-                !body.data[0].email ||
-                !body.data[0].grade ||
-                !body.data[0].subject) {
+                !noteData.title ||
+                !noteData.notescontent ||
+                !noteData.board ||
+                !noteData.dateUpdated ||
+                !noteData.grade ||
+                !noteData.subject
+            ) {
                 c.status(400)
-                return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+                return c.json({ status: 400, message: "Missing required fields in note data", data: null, error: null })
+            }
+
+            const user = await notesdb.select({ id: noteUser.id }).from(noteUser).where(eq(noteUser.email, email)).limit(1)
+            if (user.length === 0) {
+                c.status(404)
+                return c.json({ status: 404, message: "User not found", data: null, error: null })
+            }
+            const userId = user[0].id
+
+            let subjectId;
+            const existingSubject = await notesdb.select({ id: subjects.id }).from(subjects).where(eq(subjects.subject, noteData.subject)).limit(1)
+            if (existingSubject.length > 0) {
+                subjectId = existingSubject[0].id
+            } else {
+                const newSubject = await notesdb.insert(subjects).values({ subject: noteData.subject }).returning({ id: subjects.id });
+                subjectId = newSubject[0].id;
+            }
+
+            let gradeId;
+            const existingGrade = await notesdb.select({ id: grade.id }).from(grade).where(eq(grade.grade, noteData.grade)).limit(1)
+            if (existingGrade.length > 0) {
+                gradeId = existingGrade[0].id
+            } else {
+                const newGrade = await notesdb.insert(grade).values({ grade: noteData.grade }).returning({ id: grade.id });
+                gradeId = newGrade[0].id;
             }
 
             const updatedNote = await notesdb
                 .update(notes)
                 .set({
-                    title: body.data[0].title,
-                    slug: body.data[0].slug,
-                    notescontent: body.data[0].notescontent,
-                    board: body.data[0].board,
-                    dateCreated: body.data[0].dateCreated,
-                    dateUpdated: body.data[0].dateUpdated,
-                    email: body.data[0].email,
-                    grade: body.data[0].grade,
-                    subject: body.data[0].subject
+                    title: noteData.title,
+                    slug: noteData.title.replaceAll(" ", "-").toLowerCase(),
+                    notescontent: noteData.notescontent,
+                    board: noteData.board,
+                    dateUpdated: noteData.dateUpdated,
+                    grade: gradeId,
+                    subject: subjectId
                 })
-                .where(eq(notes.noteId, body.data[0].noteId))
+                .where(and(eq(notes.slug, slug), eq(notes.email, userId)))
                 .returning()
+
+            if (updatedNote.length === 0) {
+                c.status(404)
+                return c.json({ status: 404, message: "Note not found or user not authorized to update.", data: null, error: null })
+            }
 
             return c.json({ status: 200, message: "Note updated successfully", data: updatedNote[0], error: null })
         } catch (error) {
@@ -331,15 +389,35 @@ app.post("/notes/note/text/:slug/update", async (c) => {
     }
 })
 
-app.get("/notes/note/:slug/delete", async (c) => {
+app.delete("/notes/note/:slug/delete", async (c) => {
     if (validateRoute(c.req.header("origin") || "")) {
         const slug = c.req.param("slug")
-        try {
-            const deleteNote = await notesdb
-                .delete(notes)
-                .where(eq(notes.slug, slug))
+        const body = await c.req.json()
+        if (!body.email) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
+        const email = body.email
 
-            return c.json({ status: 200, message: "Note deleted successfully", data: deleteNote, error: null })
+        try {
+            const user = await notesdb.select({ id: noteUser.id }).from(noteUser).where(eq(noteUser.email, email)).limit(1)
+            if (user.length === 0) {
+                c.status(404)
+                return c.json({ status: 404, message: "User not found", data: null, error: null })
+            }
+            const userId = user[0].id
+
+            const deletedNote = await notesdb
+                .delete(notes)
+                .where(and(eq(notes.slug, slug), eq(notes.email, userId)))
+                .returning({ id: notes.noteId })
+
+            if (deletedNote.length === 0) {
+                c.status(404)
+                return c.json({ status: 404, message: "Note not found or user not authorized to delete.", data: null, error: null })
+            }
+
+            return c.json({ status: 200, message: "Note deleted successfully", data: deletedNote, error: null })
         } catch (error) {
             console.error(error)
             c.status(500)
