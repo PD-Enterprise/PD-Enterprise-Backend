@@ -207,7 +207,7 @@ app.post("/notes/new-note/text", async (c) => {
                 .values({
                     title: note.title,
                     slug: note.title.replaceAll(" ", "-").toLowerCase(),
-                    notescontent: note.content,
+                    notescontent: note.notescontent,
                     board: note.board,
                     dateCreated: note.dateCreated,
                     dateUpdated: note.dateUpdated,
