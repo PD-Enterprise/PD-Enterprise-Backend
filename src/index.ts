@@ -145,6 +145,50 @@ app.post("/users/roles/get-role", async (c) => {
         return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
     }
 })
+app.post("/user/new-user", async (c) => {
+    if (validateRoute(c.req.header("origin") || "")) {
+        const body = await c.req.json()
+        if (!body.email) {
+            c.status(400)
+            return c.json({ status: 400, message: "Missing required fields", data: null, error: null })
+        }
+        const email = body.email
+        try {
+            // Check if user exists in main users database
+            const ifUserExists = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
+            if (ifUserExists.length > 0) {
+                c.status(400)
+                return c.json({ status: 400, message: "User already exists", data: null, error: null })
+            }
+
+            // Insert user into main users database
+            const user = await db.insert(users).values({ email, membership: "tier-1" }).returning({ id: users.id })
+
+            // Check if user exists in notes database
+            const existingNoteUser = await notesdb.select({ id: noteUser.id })
+                .from(noteUser)
+                .where(eq(noteUser.email, email))
+                .limit(1)
+
+            // If user doesn't exist in notes database, add them
+            if (existingNoteUser.length > 0) {
+                c.status(400)
+                return c.json({ status: 400, message: "User already exists", data: null, error: null })
+            }
+            await notesdb.insert(noteUser).values({ email })
+
+            return c.json({ status: 200, message: "User created successfully", data: user[0], error: null })
+        } catch (error) {
+            console.error(error)
+            c.status(500)
+            return c.json({ status: 500, message: "There was an error", data: null, error })
+        }
+    }
+    else {
+        c.status(500)
+        return c.json({ status: 500, message: "Origin not allowed", data: null, error: null })
+    }
+})
 
 // CNOTES API ROUTES
 app.post("/notes/new-note/text", async (c) => {
