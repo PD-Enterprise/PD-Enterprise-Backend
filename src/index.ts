@@ -15,6 +15,8 @@ import dotenv from "dotenv";
 import { grade, subjects } from "../drizzle/cnotes/schema";
 import validator from "validator";
 import rateLimit from "hono-rate-limit";
+import { noteSchema } from "./zodSchema";
+import { z } from "zod";
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -33,6 +35,11 @@ const initial_message = {
         always return your whole answer strictly in the following json syntax: {summary: "[a short summary in a few words of the prompt"]", content: "[your response]"}`,
 };
 let chatCompletion: any;
+
+const chatSchema = z.object({
+    prompt: z.string().min(1).max(2000).trim(),
+    modalParams: z.any(), // Adjust as needed
+});
 
 // FUNCTIONS
 async function chatWithHistory(
@@ -367,7 +374,21 @@ app.post("/user/new-user", async (c) => {
 // CNOTES API ROUTES
 app.post("/notes/new-note/text", async (c) => {
     const body = await c.req.json();
-    if (!body.email || !body.note) {
+
+    // Validate and sanitize input
+    const result = noteSchema.safeParse(body);
+    if (!result.success) {
+        c.status(400);
+        return c.json({
+            status: 400,
+            message: "Invalid input",
+            data: null,
+            error: result.error.errors,
+        });
+    }
+    const sanitized = result.data;
+
+    if (!sanitized.email || !sanitized.note) {
         c.status(400);
         return c.json({
             status: 400,
@@ -376,7 +397,7 @@ app.post("/notes/new-note/text", async (c) => {
             error: null,
         });
     }
-    const email = body.email;
+    const email = sanitized.email;
     // Auth check
     if (!(await userExistsInNotesDb(email))) {
         c.status(401);
@@ -387,7 +408,7 @@ app.post("/notes/new-note/text", async (c) => {
             error: null,
         });
     }
-    const note = body.note;
+    const note = sanitized.note;
 
     try {
         let userId;
