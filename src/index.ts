@@ -449,14 +449,14 @@ app.post("/notes/new-note/text", async (c) => {
         const existingGrade = await notesdb
             .select({ id: grade.id })
             .from(grade)
-            .where(eq(grade.grade, note.grade))
+            .where(eq(grade.grade, Number(note.grade)))
             .limit(1);
         if (existingGrade.length > 0) {
             gradeId = existingGrade[0].id;
         } else {
             const newGrade = await notesdb
                 .insert(grade)
-                .values({ grade: note.grade })
+                .values({ grade: Number(note.grade) })
                 .returning({ id: grade.id });
             gradeId = newGrade[0].id;
         }
@@ -683,14 +683,14 @@ app.post("/notes/note/text/:slug/update", async (c) => {
         const existingGrade = await notesdb
             .select({ id: grade.id })
             .from(grade)
-            .where(eq(grade.grade, noteData.grade))
+            .where(eq(grade.grade, Number(noteData.grade)))
             .limit(1);
         if (existingGrade.length > 0) {
             gradeId = existingGrade[0].id;
         } else {
             const newGrade = await notesdb
                 .insert(grade)
-                .values({ grade: noteData.grade })
+                .values({ grade: Number(noteData.grade) })
                 .returning({ id: grade.id });
             gradeId = newGrade[0].id;
         }
