@@ -58,6 +58,17 @@ async function chatWithHistory(
     return response;
 }
 
+// Helper function to check user existence in the main users db
+async function userExistsInMainDb(email: string) {
+    const user = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    return user.length > 0;
+}
+// Helper function to check user existence in the notes db
+async function userExistsInNotesDb(email: string) {
+    const user = await notesdb.select({ id: noteUser.id }).from(noteUser).where(eq(noteUser.email, email)).limit(1);
+    return user.length > 0;
+}
+
 // ROUTES
 // Define a route for the root URL
 app.get("/", (c) => {
@@ -209,6 +220,16 @@ app.post("/users/roles/get-role", async (c) => {
         });
     }
     const email = body.email;
+    // Auth check
+    if (!(await userExistsInMainDb(email))) {
+        c.status(401);
+        return c.json({
+            status: 401,
+            message: "Unauthorized: Email does not exist.",
+            data: null,
+            error: null,
+        });
+    }
     try {
         const role = await db
             .select({ role: users.membership })
@@ -356,6 +377,16 @@ app.post("/notes/new-note/text", async (c) => {
         });
     }
     const email = body.email;
+    // Auth check
+    if (!(await userExistsInNotesDb(email))) {
+        c.status(401);
+        return c.json({
+            status: 401,
+            message: "Unauthorized: Email does not exist in notes database.",
+            data: null,
+            error: null,
+        });
+    }
     const note = body.note;
 
     try {
@@ -453,6 +484,16 @@ app.post("/notes/notes", async (c) => {
         });
     }
     const email = body.email;
+    // Auth check
+    if (!(await userExistsInNotesDb(email))) {
+        c.status(401);
+        return c.json({
+            status: 401,
+            message: "Unauthorized: Email does not exist in notes database.",
+            data: null,
+            error: null,
+        });
+    }
     try {
         const getNotes = await notesdb
             .select({
@@ -548,7 +589,6 @@ app.post("/notes/note/text/:slug/update", async (c) => {
     const slug = c.req.param("slug");
     const body = await c.req.json();
     const { email, data: noteData } = body;
-
     if (!email || !noteData) {
         c.status(400);
         return c.json({
@@ -558,7 +598,16 @@ app.post("/notes/note/text/:slug/update", async (c) => {
             error: null,
         });
     }
-
+    // Auth check
+    if (!(await userExistsInNotesDb(email))) {
+        c.status(401);
+        return c.json({
+            status: 401,
+            message: "Unauthorized: Email does not exist in notes database.",
+            data: null,
+            error: null,
+        });
+    }
     try {
         if (
             !noteData.title ||
@@ -680,7 +729,16 @@ app.delete("/notes/note/:slug/delete", async (c) => {
         });
     }
     const email = body.email;
-
+    // Auth check
+    if (!(await userExistsInNotesDb(email))) {
+        c.status(401);
+        return c.json({
+            status: 401,
+            message: "Unauthorized: Email does not exist in notes database.",
+            data: null,
+            error: null,
+        });
+    }
     try {
         const user = await notesdb
             .select({ id: noteUser.id })
@@ -777,3 +835,4 @@ app.post("/ai/chat/:modal", async (c) => {
 
 // Export the application instance
 export default app;
+
