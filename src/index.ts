@@ -130,6 +130,14 @@ app.use(
         message: "Too many requests, please try again later.",
     })
 );
+app.use(
+    "/ai/chat/:modal",
+    rateLimit({
+        windowMs: 60 * 1000, // 60,000 ms = 1 minute
+        limit: 15, // 15 requests per minute (≈ 0.25 requests/sec)
+        message: "Too many AI requests, please try again later.",
+    })
+);
 
 // Higher rate limit for all other routes
 app.use(
