@@ -34,3 +34,4 @@ lerna-debug.log*
 
 # yarn-lock
 yarn.lock
+pnpm-lock.yaml
