@@ -728,7 +728,6 @@ app.post("/notes/note/text/:slug/update", async (c) => {
             .update(notes)
             .set({
                 title: noteData.title,
-                slug: noteData.title.replaceAll(" ", "-").toLowerCase(),
                 notescontent: noteData.notescontent,
                 board: updateBoardId,
                 dateUpdated: noteData.dateUpdated,
