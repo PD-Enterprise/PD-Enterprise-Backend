@@ -9,7 +9,7 @@ import { checkUserExits } from "./utils/checkUserExits";
 import { db } from "./db/users"; // Import database connection
 import { users, posts } from "./db/users/schema"; // Import posts and users schema from database
 import { notesdb } from "./db/cnotes";
-import { notes, noteUser } from "./db/cnotes/schema";
+import { board, notes, user as noteUser } from "./db/cnotes/schema";
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
 import { grade, subjects } from "../drizzle/cnotes/schema";
@@ -17,6 +17,7 @@ import validator from "validator";
 import rateLimit from "hono-rate-limit";
 import { noteSchema } from "./zodSchema";
 import { z } from "zod";
+import { generateSlug } from "./generateSlug";
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -72,8 +73,12 @@ async function userExistsInMainDb(email: string) {
 }
 // Helper function to check user existence in the notes db
 async function userExistsInNotesDb(email: string) {
-    const user = await notesdb.select({ id: noteUser.id }).from(noteUser).where(eq(noteUser.email, email)).limit(1);
-    return user.length > 0;
+    const existing = await notesdb
+        .select({ id: noteUser.id })
+        .from(noteUser)
+        .where(eq(noteUser.email, email))
+        .limit(1);
+    return existing.length > 0;
 }
 
 // ROUTES
@@ -283,7 +288,8 @@ app.post("/user/new-user", async (c) => {
             error: null,
         });
     }
-    const email = body.email.trim().toLowerCase();
+    const name = body.name;
+    const email = body.email;
 
     // Validate email format
     if (!validator.isEmail(email)) {
@@ -314,26 +320,10 @@ app.post("/user/new-user", async (c) => {
         }
 
         // Insert user into main users database
-        let user;
-        try {
-            user = await db
-                .insert(users)
-                .values({ email, membership: "tier-1" })
-                .returning({ id: users.id });
-        } catch (error) {
-            // Handle unique constraint violation (race condition)
-            if ((error as any).code === "23505") {
-                // PostgreSQL unique violation code
-                c.status(400);
-                return c.json({
-                    status: 400,
-                    message: "User already exists",
-                    data: null,
-                    error: null,
-                });
-            }
-            throw error;
-        }
+        const user = await db
+            .insert(users)
+            .values({ name, email, membership: "tier-1" })
+            .returning({ id: users.id });
 
         // Check if user exists in notes database
         const existingNoteUser = await notesdb
@@ -374,16 +364,17 @@ app.post("/user/new-user", async (c) => {
 // CNOTES API ROUTES
 app.post("/notes/new-note/text", async (c) => {
     const body = await c.req.json();
-
+    // console.log(body)
     // Validate and sanitize input
     const result = noteSchema.safeParse(body);
+    // console.log(result)
     if (!result.success) {
         c.status(400);
         return c.json({
             status: 400,
             message: "Invalid input",
             data: null,
-            error: result.error.errors,
+            error: result.error,
         });
     }
     const sanitized = result.data;
@@ -411,6 +402,24 @@ app.post("/notes/new-note/text", async (c) => {
     const note = sanitized.note;
 
     try {
+        let boardId: number | null = null;
+        if (note.board) {
+            const existingBoard = await notesdb
+                .select({ id: board.id })
+                .from(board)
+                .where(eq(board.board, note.board))
+                .limit(1);
+
+            if (existingBoard.length > 0) {
+                boardId = existingBoard[0].id;
+            } else {
+                const newBoard = await notesdb
+                    .insert(board)
+                    .values({ board: note.board })
+                    .returning({ id: board.id });
+                boardId = newBoard[0].id;
+            }
+        }
         let userId;
         const existingUser = await notesdb
             .select({ id: noteUser.id })
@@ -461,19 +470,21 @@ app.post("/notes/new-note/text", async (c) => {
             gradeId = newGrade[0].id;
         }
 
+        const newNote = {
+            title: note.title,
+            slug: generateSlug(note.title),
+            notescontent: note.notescontent,
+            board: boardId,
+            dateCreated: note.dateCreated,
+            dateUpdated: note.dateUpdated,
+            email: userId,
+            grade: gradeId,
+            subject: subjectId,
+        };
+        // console.log(newNote)
         const newNoteQuery = await notesdb
             .insert(notes)
-            .values({
-                title: note.title,
-                slug: note.title.replaceAll(" ", "-").toLowerCase(),
-                notescontent: note.notescontent,
-                board: note.board,
-                dateCreated: note.dateCreated,
-                dateUpdated: note.dateUpdated,
-                email: userId,
-                grade: gradeId,
-                subject: subjectId,
-            })
+            .values(newNote)
             .returning({ insertedId: notes.noteId });
 
         return c.json({
@@ -605,7 +616,6 @@ app.get("/notes/note/:slug", async (c) => {
         });
     }
 });
-
 app.post("/notes/note/text/:slug/update", async (c) => {
     const slug = c.req.param("slug");
     const body = await c.req.json();
@@ -695,13 +705,32 @@ app.post("/notes/note/text/:slug/update", async (c) => {
             gradeId = newGrade[0].id;
         }
 
+        // Resolve board id from board name (optional)
+        let updateBoardId: number | null = null;
+        if (noteData.board) {
+            const existingBoardForUpdate = await notesdb
+                .select({ id: board.id })
+                .from(board)
+                .where(eq(board.board, noteData.board))
+                .limit(1);
+            if (existingBoardForUpdate.length > 0) {
+                updateBoardId = existingBoardForUpdate[0].id;
+            } else {
+                const createdBoardForUpdate = await notesdb
+                    .insert(board)
+                    .values({ board: noteData.board })
+                    .returning({ id: board.id });
+                updateBoardId = createdBoardForUpdate[0].id;
+            }
+        }
+
         const updatedNote = await notesdb
             .update(notes)
             .set({
                 title: noteData.title,
                 slug: noteData.title.replaceAll(" ", "-").toLowerCase(),
                 notescontent: noteData.notescontent,
-                board: noteData.board,
+                board: updateBoardId,
                 dateUpdated: noteData.dateUpdated,
                 grade: gradeId,
                 subject: subjectId,
@@ -736,7 +765,6 @@ app.post("/notes/note/text/:slug/update", async (c) => {
         });
     }
 });
-
 app.delete("/notes/note/:slug/delete", async (c) => {
     const slug = c.req.param("slug");
     const body = await c.req.json();

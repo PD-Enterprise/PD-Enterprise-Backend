@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { user, notes, grade, subjects } from "./schema";
+import { user, notes, grade, subjects, board } from "./schema";
 
 export const notesRelations = relations(notes, ({one}) => ({
 	user: one(user, {
@@ -14,6 +14,10 @@ export const notesRelations = relations(notes, ({one}) => ({
 		fields: [notes.subject],
 		references: [subjects.id]
 	}),
+	board: one(board, {
+		fields: [notes.board],
+		references: [board.id]
+	}),
 }));
 
 export const userRelations = relations(user, ({many}) => ({
@@ -25,5 +29,9 @@ export const gradeRelations = relations(grade, ({many}) => ({
 }));
 
 export const subjectsRelations = relations(subjects, ({many}) => ({
+	notes: many(notes),
+}));
+
+export const boardRelations = relations(board, ({many}) => ({
 	notes: many(notes),
 }));

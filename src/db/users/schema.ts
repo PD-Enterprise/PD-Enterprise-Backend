@@ -1,27 +1,26 @@
-import { pgTable, unique, serial, varchar, text, timestamp } from "drizzle-orm/pg-core"
+import { pgTable, unique, serial, varchar, text, date } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
 
 export const posts = pgTable("posts", {
-	postId: serial("post_id").primaryKey().notNull(),
-	title: varchar({ length: 255 }).notNull(),
+	id: serial().primaryKey().notNull(),
 	slug: varchar({ length: 255 }).notNull(),
-	content: text().notNull(),
-	authorId: varchar("author_id", { length: 255 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	title: varchar({ length: 255 }).notNull(),
+	excerpt: text(),
+	author: varchar({ length: 100 }),
+	date: date(),
+	category: varchar({ length: 100 }),
+	content: text(),
 }, (table) => [
 	unique("posts_slug_key").on(table.slug),
 ]);
-
-export const apikeys = pgTable("apikeys", {
-	id: serial().primaryKey().notNull(),
-	keyName: varchar("key_name", { length: 255 }),
-	apiKey: varchar("api_key", { length: 255 }).notNull(),
-});
 
 export const users = pgTable("users", {
 	id: serial().primaryKey().notNull(),
 	email: varchar({ length: 255 }).notNull(),
 	membership: varchar({ length: 255 }),
-});
+	name: varchar({ length: 255 }).notNull(),
+}, (table) => [
+	unique("users_email_key").on(table.email),
+]);
