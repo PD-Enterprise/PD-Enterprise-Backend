@@ -9,7 +9,7 @@ import { checkUserExits } from "./utils/checkUserExits";
 import { db } from "./db/users"; // Import database connection
 import { users, posts } from "./db/users/schema"; // Import posts and users schema from database
 import { notesdb } from "./db/cnotes";
-import { board, notes, user as noteUser } from "./db/cnotes/schema";
+import { notes, user as noteUser } from "./db/cnotes/schema";
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
 import { grade, subjects } from "../drizzle/cnotes/schema";
@@ -402,24 +402,6 @@ app.post("/notes/new-note/text", async (c) => {
     const note = sanitized.note;
 
     try {
-        let boardId: number | null = null;
-        if (note.board) {
-            const existingBoard = await notesdb
-                .select({ id: board.id })
-                .from(board)
-                .where(eq(board.board, note.board))
-                .limit(1);
-
-            if (existingBoard.length > 0) {
-                boardId = existingBoard[0].id;
-            } else {
-                const newBoard = await notesdb
-                    .insert(board)
-                    .values({ board: note.board })
-                    .returning({ id: board.id });
-                boardId = newBoard[0].id;
-            }
-        }
         let userId;
         const existingUser = await notesdb
             .select({ id: noteUser.id })
@@ -474,7 +456,6 @@ app.post("/notes/new-note/text", async (c) => {
             title: note.title,
             slug: generateSlug(note.title),
             notescontent: note.notescontent,
-            board: boardId,
             dateCreated: note.dateCreated,
             dateUpdated: note.dateUpdated,
             email: userId,
@@ -532,7 +513,6 @@ app.post("/notes/notes", async (c) => {
                 title: notes.title,
                 slug: notes.slug,
                 notescontent: notes.notescontent,
-                board: notes.board,
                 dateCreated: notes.dateCreated,
                 grade: grade.grade,
                 subject: subjects.subject,
@@ -578,7 +558,6 @@ app.get("/notes/note/:slug", async (c) => {
                 title: notes.title,
                 slug: notes.slug,
                 notescontent: notes.notescontent,
-                board: notes.board,
                 dateCreated: notes.dateCreated,
                 dateUpdated: notes.dateUpdated,
                 grade: grade.grade,
@@ -643,7 +622,6 @@ app.post("/notes/note/text/:slug/update", async (c) => {
         if (
             !noteData.title ||
             !noteData.notescontent ||
-            !noteData.board ||
             !noteData.dateUpdated ||
             !noteData.grade ||
             !noteData.subject
@@ -705,31 +683,11 @@ app.post("/notes/note/text/:slug/update", async (c) => {
             gradeId = newGrade[0].id;
         }
 
-        // Resolve board id from board name (optional)
-        let updateBoardId: number | null = null;
-        if (noteData.board) {
-            const existingBoardForUpdate = await notesdb
-                .select({ id: board.id })
-                .from(board)
-                .where(eq(board.board, noteData.board))
-                .limit(1);
-            if (existingBoardForUpdate.length > 0) {
-                updateBoardId = existingBoardForUpdate[0].id;
-            } else {
-                const createdBoardForUpdate = await notesdb
-                    .insert(board)
-                    .values({ board: noteData.board })
-                    .returning({ id: board.id });
-                updateBoardId = createdBoardForUpdate[0].id;
-            }
-        }
-
         const updatedNote = await notesdb
             .update(notes)
             .set({
                 title: noteData.title,
                 notescontent: noteData.notescontent,
-                board: updateBoardId,
                 dateUpdated: noteData.dateUpdated,
                 grade: gradeId,
                 subject: subjectId,
