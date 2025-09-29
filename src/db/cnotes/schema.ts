@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, integer, foreignKey, unique, text, date, timestamp } from "drizzle-orm/pg-core"
+import { pgTable, serial, varchar, integer, foreignKey, unique, text, date, timestamp, char } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -28,6 +28,7 @@ export const notes = pgTable("notes", {
 	email: integer(),
 	grade: integer(),
 	subject: integer(),
+	type: char({ length: 10 }).notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.email],

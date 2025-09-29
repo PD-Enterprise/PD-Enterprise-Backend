@@ -362,7 +362,17 @@ app.post("/user/new-user", async (c) => {
 });
 
 // CNOTES API ROUTES
-app.post("/notes/new-note/text", async (c) => {
+app.post("/notes/new-note/:type", async (c) => {
+    const type = await c.req.param("type");
+    if (!type) {
+        c.status(400);
+        return c.json({
+            status: 400,
+            message: "Missing slug",
+            data: null,
+            error: null,
+        });
+    }
     const body = await c.req.json();
     // console.log(body)
     // Validate and sanitize input
@@ -461,6 +471,7 @@ app.post("/notes/new-note/text", async (c) => {
             email: userId,
             grade: gradeId,
             subject: subjectId,
+            type: type
         };
         // console.log(newNote)
         const newNoteQuery = await notesdb
@@ -516,6 +527,7 @@ app.post("/notes/notes", async (c) => {
                 dateCreated: notes.dateCreated,
                 grade: grade.grade,
                 subject: subjects.subject,
+                type: notes.type
             })
             .from(notes)
             .innerJoin(subjects, eq(notes.subject, subjects.id))
@@ -562,6 +574,7 @@ app.get("/notes/note/:slug", async (c) => {
                 dateUpdated: notes.dateUpdated,
                 grade: grade.grade,
                 subject: subjects.subject,
+                type: notes.type
             })
             .from(notes)
             .innerJoin(subjects, eq(notes.subject, subjects.id))
