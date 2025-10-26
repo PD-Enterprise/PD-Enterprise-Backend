@@ -1,34 +1,40 @@
-import { pgTable, serial, varchar, integer, foreignKey, unique, text, date, timestamp, char } from "drizzle-orm/pg-core"
+import { pgTable, serial, varchar, text, integer, foreignKey, unique, date, timestamp } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
 
+export const topic = pgTable("topic", {
+	id: serial().primaryKey().notNull(),
+	topic: varchar({ length: 255 }).notNull(),
+});
+
 export const user = pgTable("user", {
 	id: serial().primaryKey().notNull(),
 	email: varchar({ length: 255 }).notNull(),
+	institution: text(),
 });
 
-export const grade = pgTable("grade", {
+export const academicLevel = pgTable("academic_level", {
 	id: serial().primaryKey().notNull(),
-	grade: integer().notNull(),
-});
-
-export const subjects = pgTable("subjects", {
-	id: serial().primaryKey().notNull(),
-	subject: varchar({ length: 255 }).notNull(),
+	grade: integer(),
+	academicLevel: varchar("academic_level", { length: 255 }),
 });
 
 export const notes = pgTable("notes", {
 	noteId: serial("note_id").primaryKey().notNull(),
 	title: varchar({ length: 255 }).notNull(),
 	slug: varchar({ length: 255 }).notNull(),
-	notescontent: text().notNull(),
-	dateCreated: date("date_created"),
-	dateUpdated: timestamp("date_updated", { mode: 'string' }).defaultNow(),
-	email: integer(),
-	grade: integer(),
-	subject: integer(),
-	type: char({ length: 10 }).notNull(),
+	content: text().notNull(),
+	dateCreated: date("date_created").notNull(),
+	dateUpdated: timestamp("date_updated", { mode: 'string' }).defaultNow().notNull(),
+	email: integer().notNull(),
+	topic: integer().notNull(),
+	type: text().notNull(),
+	visibility: varchar({ length: 255 }).notNull(),
+	academicLevel: integer("academic_level").notNull(),
+	year: integer().notNull(),
+	language: varchar({ length: 255 }).notNull(),
+	keywords: text(),
 }, (table) => [
 	foreignKey({
 			columns: [table.email],
@@ -36,14 +42,14 @@ export const notes = pgTable("notes", {
 			name: "email"
 		}),
 	foreignKey({
-			columns: [table.grade],
-			foreignColumns: [grade.id],
-			name: "grade"
+			columns: [table.academicLevel],
+			foreignColumns: [academicLevel.id],
+			name: "academic_level"
 		}),
 	foreignKey({
-			columns: [table.subject],
-			foreignColumns: [subjects.id],
-			name: "subject"
+			columns: [table.topic],
+			foreignColumns: [topic.id],
+			name: "topic"
 		}),
 	unique("notes_slug_key").on(table.slug),
 ]);

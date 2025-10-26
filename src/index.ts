@@ -12,7 +12,7 @@ import { notesdb } from "./db/cnotes";
 import { notes, user as noteUser } from "./db/cnotes/schema";
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
-import { grade, subjects } from "../drizzle/cnotes/schema";
+import { academicLevel, topic } from "../drizzle/cnotes/schema";
 import validator from "validator";
 import rateLimit from "hono-rate-limit";
 import { noteSchema } from "./zodSchema";
@@ -431,47 +431,50 @@ app.post("/notes/new-note/:type", async (c) => {
 
         let subjectId;
         const existingSubject = await notesdb
-            .select({ id: subjects.id })
-            .from(subjects)
-            .where(eq(subjects.subject, note.subject))
+            .select({ id: topic.id })
+            .from(topic)
+            .where(eq(topic.topic, note.topic))
             .limit(1);
 
         if (existingSubject.length > 0) {
             subjectId = existingSubject[0].id;
         } else {
             const newSubject = await notesdb
-                .insert(subjects)
-                .values({ subject: note.subject })
-                .returning({ id: subjects.id });
+                .insert(topic)
+                .values({ topic: note.topic })
+                .returning({ id: topic.id });
             subjectId = newSubject[0].id;
         }
 
         let gradeId;
         const existingGrade = await notesdb
-            .select({ id: grade.id })
-            .from(grade)
-            .where(eq(grade.grade, Number(note.grade)))
+            .select({ id: academicLevel.id })
+            .from(academicLevel)
+            .where(eq(academicLevel.grade, Number(note.academicLevel)))
             .limit(1);
         if (existingGrade.length > 0) {
             gradeId = existingGrade[0].id;
         } else {
             const newGrade = await notesdb
-                .insert(grade)
-                .values({ grade: Number(note.grade) })
-                .returning({ id: grade.id });
+                .insert(academicLevel)
+                .values({ grade: Number(note.academicLevel) })
+                .returning({ id: academicLevel.id });
             gradeId = newGrade[0].id;
         }
 
         const newNote = {
             title: note.title,
             slug: generateSlug(note.title),
-            notescontent: note.notescontent,
+            notescontent: note.content,
             dateCreated: note.dateCreated,
             dateUpdated: note.dateUpdated,
             email: userId,
-            grade: gradeId,
-            subject: subjectId,
-            type: type
+            academicLevel: gradeId,
+            topic: subjectId,
+            type: type,
+            visibility: note.visibility,
+            language: note.language,
+            year: note.year,
         };
         // console.log(newNote)
         const newNoteQuery = await notesdb
@@ -523,15 +526,15 @@ app.post("/notes/notes", async (c) => {
             .select({
                 title: notes.title,
                 slug: notes.slug,
-                notescontent: notes.notescontent,
+                notescontent: notes.content,
                 dateCreated: notes.dateCreated,
-                grade: grade.grade,
-                subject: subjects.subject,
+                grade: academicLevel.grade,
+                subject: topic.topic,
                 type: notes.type
             })
             .from(notes)
-            .innerJoin(subjects, eq(notes.subject, subjects.id))
-            .innerJoin(grade, eq(notes.grade, grade.id))
+            .innerJoin(topic, eq(notes.topic, topic.id))
+            .innerJoin(academicLevel, eq(notes.academicLevel, academicLevel.id))
             .innerJoin(noteUser, eq(notes.email, noteUser.id))
             .where(eq(noteUser.email, email));
         // console.log(getNotes)
@@ -569,16 +572,16 @@ app.get("/notes/note/:slug", async (c) => {
                 noteId: notes.noteId,
                 title: notes.title,
                 slug: notes.slug,
-                notescontent: notes.notescontent,
+                notescontent: notes.content,
                 dateCreated: notes.dateCreated,
                 dateUpdated: notes.dateUpdated,
-                grade: grade.grade,
-                subject: subjects.subject,
+                grade: academicLevel.grade,
+                subject: topic.topic,
                 type: notes.type
             })
             .from(notes)
-            .innerJoin(subjects, eq(notes.subject, subjects.id))
-            .innerJoin(grade, eq(notes.grade, grade.id))
+            .innerJoin(topic, eq(notes.topic, topic.id))
+            .innerJoin(academicLevel, eq(notes.academicLevel, academicLevel.id))
             .where(eq(notes.slug, slug));
 
         if (!noteResult || noteResult.length === 0) {
@@ -666,33 +669,33 @@ app.post("/notes/note/text/:slug/update", async (c) => {
 
         let subjectId;
         const existingSubject = await notesdb
-            .select({ id: subjects.id })
-            .from(subjects)
-            .where(eq(subjects.subject, noteData.subject))
+            .select({ id: topic.id })
+            .from(topic)
+            .where(eq(topic.topic, noteData.subject))
             .limit(1);
         if (existingSubject.length > 0) {
             subjectId = existingSubject[0].id;
         } else {
             const newSubject = await notesdb
-                .insert(subjects)
-                .values({ subject: noteData.subject })
-                .returning({ id: subjects.id });
+                .insert(topic)
+                .values({ topic: noteData.subject })
+                .returning({ id: topic.id });
             subjectId = newSubject[0].id;
         }
 
         let gradeId;
         const existingGrade = await notesdb
-            .select({ id: grade.id })
-            .from(grade)
-            .where(eq(grade.grade, Number(noteData.grade)))
+            .select({ id: academicLevel.id })
+            .from(academicLevel)
+            .where(eq(academicLevel.grade, Number(noteData.grade)))
             .limit(1);
         if (existingGrade.length > 0) {
             gradeId = existingGrade[0].id;
         } else {
             const newGrade = await notesdb
-                .insert(grade)
+                .insert(academicLevel)
                 .values({ grade: Number(noteData.grade) })
-                .returning({ id: grade.id });
+                .returning({ id: academicLevel.id });
             gradeId = newGrade[0].id;
         }
 
@@ -700,10 +703,10 @@ app.post("/notes/note/text/:slug/update", async (c) => {
             .update(notes)
             .set({
                 title: noteData.title,
-                notescontent: noteData.notescontent,
+                content: noteData.notescontent,
                 dateUpdated: noteData.dateUpdated,
-                grade: gradeId,
-                subject: subjectId,
+                academicLevel: gradeId,
+                topic: subjectId,
             })
             .where(and(eq(notes.slug, slug), eq(notes.email, userId)))
             .returning();
