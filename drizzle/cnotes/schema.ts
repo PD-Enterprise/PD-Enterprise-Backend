@@ -3,11 +3,6 @@ import { sql } from "drizzle-orm"
 
 
 
-export const topic = pgTable("topic", {
-	id: serial().primaryKey().notNull(),
-	topic: varchar({ length: 255 }).notNull(),
-});
-
 export const user = pgTable("user", {
 	id: serial().primaryKey().notNull(),
 	email: varchar({ length: 255 }).notNull(),
@@ -28,7 +23,7 @@ export const notes = pgTable("notes", {
 	dateCreated: date("date_created").notNull(),
 	dateUpdated: timestamp("date_updated", { mode: 'string' }).defaultNow().notNull(),
 	email: integer().notNull(),
-	topic: integer().notNull(),
+	topic: varchar({ length: 255 }).notNull(),
 	type: text().notNull(),
 	visibility: varchar({ length: 255 }).notNull(),
 	academicLevel: integer("academic_level").notNull(),
@@ -45,11 +40,6 @@ export const notes = pgTable("notes", {
 			columns: [table.academicLevel],
 			foreignColumns: [academicLevel.id],
 			name: "academic_level"
-		}),
-	foreignKey({
-			columns: [table.topic],
-			foreignColumns: [topic.id],
-			name: "topic"
 		}),
 	unique("notes_slug_key").on(table.slug),
 ]);
