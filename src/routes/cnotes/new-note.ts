@@ -37,8 +37,27 @@ newNoteRouter.post("/new-note/:type", async (c) => {
     );
   }
 
+  if (
+    !note.title ||
+    !note.content ||
+    !note.dateCreated ||
+    !note.academicLevel ||
+    !note.topic ||
+    !note.type ||
+    !note.visibility ||
+    !note.year ||
+    !note.language ||
+    !note.keywords
+  ) {
+    c.status(400);
+    return c.json(
+      returnJson(400, "Missing required fields in note data", null, null)
+    );
+  }
+
   let userId;
-  let gradeId;
+  let academicLevelId;
+
   try {
     const existingUser = await notesdb
       .select({ id: user.id })
@@ -61,13 +80,13 @@ newNoteRouter.post("/new-note/:type", async (c) => {
       .where(eq(academicLevel.academicLevel, note.academicLevel))
       .limit(1);
     if (existingacademicLevel.length > 0) {
-      gradeId = existingacademicLevel[0].id;
+      academicLevelId = existingacademicLevel[0].id;
     } else {
       const newAcademicLevel = await notesdb
         .insert(academicLevel)
         .values({ academicLevel: note.academicLevel })
         .returning({ id: academicLevel.id });
-      gradeId = newAcademicLevel[0].id;
+      academicLevelId = newAcademicLevel[0].id;
     }
 
     const newNote = {
@@ -80,7 +99,7 @@ newNoteRouter.post("/new-note/:type", async (c) => {
       topic: note.topic,
       type: type,
       visibility: note.visibility,
-      academicLevel: gradeId,
+      academicLevel: academicLevelId,
       year: note.year,
       language: note.language,
       keywords: note.keywords,
