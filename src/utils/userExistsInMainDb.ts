@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/users";
-import { users } from "../db/users/schema";
+import { users } from "../../drizzle/users/schema";
 import { functionReturn } from "./functionReturn";
 
 export async function userExistsInMainDb(email: string) {

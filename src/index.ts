@@ -5,6 +5,12 @@ import dotenv from "dotenv";
 import { returnJson } from "./utils/returnJson";
 import { rateLimiter } from "./utils/ratelimiter";
 
+import root from "./routes";
+import usersRouter from "./routes/user-management";
+import pdEnterpriseRouter from "./routes/pd-enterprise";
+import aiRouter from "./routes/grade-ai";
+import notesRouter from "./routes/cnotes";
+
 const app = new Hono();
 dotenv.config();
 
@@ -44,5 +50,14 @@ app.use("/pd-enterprise/blog/posts/:slug", rateLimiter());
 app.use("/notes/note/:slug", rateLimiter());
 app.use("/ai/chat/:modal", rateLimiter(15));
 app.use("*", rateLimiter(60));
+
+/*
+  Routes
+*/
+app.route("/", root);
+app.route("/users", usersRouter);
+app.route("/pd-enterprise", pdEnterpriseRouter);
+app.route("/ai", aiRouter);
+app.route("/notes", notesRouter);
 
 export default app;

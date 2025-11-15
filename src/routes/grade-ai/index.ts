@@ -45,7 +45,7 @@ async function chatWithHistory(
   return response;
 }
 
-aiRouter.post("/ai/chat/:modal", async (c) => {
+aiRouter.post("/chat/:modal", async (c) => {
   // @ts-expect-error
   const apiKey = c.env.GROQ_API_KEY;
   const groq = new Groq({ apiKey });
@@ -87,3 +87,5 @@ aiRouter.post("/ai/chat/:modal", async (c) => {
     });
   }
 });
+
+export default aiRouter;

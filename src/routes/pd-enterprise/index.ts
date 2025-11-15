@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { db } from "../../db/users";
-import { posts } from "../../db/users/schema";
+import { posts } from "../../../drizzle/users/schema";
 import { eq } from "drizzle-orm";
 
 const pdEnterpriseRouter = new Hono();
 
 // Define a route for fetching all blog posts
-pdEnterpriseRouter.get("/pd-enterprise/blog/posts", async (c) => {
+pdEnterpriseRouter.get("/blog/posts", async (c) => {
   try {
     const allPosts = await db.select().from(posts); // Fetch all posts from the database
     c.status(200); // Set the HTTP status code to 200 (OK)
@@ -28,7 +28,7 @@ pdEnterpriseRouter.get("/pd-enterprise/blog/posts", async (c) => {
   }
 });
 // Define a route for fetching a single blog post by slug
-pdEnterpriseRouter.get("/pd-enterprise/blog/posts/:slug", async (c) => {
+pdEnterpriseRouter.get("/blog/posts/:slug", async (c) => {
   const slug = c.req.param("slug");
   try {
     const post = await db.select().from(posts).where(eq(posts.slug, slug));
@@ -50,3 +50,5 @@ pdEnterpriseRouter.get("/pd-enterprise/blog/posts/:slug", async (c) => {
     });
   }
 });
+
+export default pdEnterpriseRouter;

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { returnJson } from "../../utils/returnJson";
+import { returnJson } from "../utils/returnJson";
 
 const root = new Hono();
 
@@ -18,3 +18,5 @@ root.post("/", (c) => {
   );
   return c.json(returnData);
 });
+
+export default root;

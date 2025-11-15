@@ -2,15 +2,15 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import validator from "validator";
 import { notesdb } from "../../db/cnotes";
-import { user as noteUser } from "../../db/cnotes/schema";
+import { user as noteUser } from "../../../drizzle/cnotes/schema";
 import { db } from "../../db/users";
-import { users } from "../../db/users/schema";
+import { users } from "../../../drizzle/users/schema";
 import { userExistsInMainDb } from "../../utils/userExistsInMainDb";
 import { returnJson } from "../../utils/returnJson";
 
 const usersRouter = new Hono();
 
-usersRouter.post("/users/roles/get-role", async (c) => {
+usersRouter.post("/roles/get-role", async (c) => {
   const body = await c.req.json();
   const email = body.email;
 
@@ -72,7 +72,7 @@ usersRouter.post("/users/roles/get-role", async (c) => {
     );
   }
 });
-usersRouter.post("/user/new-user", async (c) => {
+usersRouter.post("/new-user", async (c) => {
   const body = await c.req.json();
   const name = body.name;
   const email = body.email;
@@ -138,3 +138,5 @@ usersRouter.post("/user/new-user", async (c) => {
     );
   }
 });
+
+export default usersRouter;

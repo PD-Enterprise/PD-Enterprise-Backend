@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { notesdb } from "../../db/cnotes";
 import { noteSchema } from "../../zodSchema";
-import { notes, academicLevel } from "../../db/cnotes/schema";
+import { notes, academicLevel } from "../../../drizzle/cnotes/schema";
 import { userExistsInNotesDb } from "../../utils/userExistsInNoteDb";
 
 const notesRouter = new Hono();
@@ -461,3 +461,5 @@ notesRouter.delete("/notes/note/:slug/delete", async (c) => {
     });
   }
 });
+
+export default notesRouter;

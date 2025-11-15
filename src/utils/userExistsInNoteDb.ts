@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { notesdb } from "../db/cnotes";
-import { user as noteUser } from "../db/cnotes/schema";
+import { user as noteUser } from "../../drizzle/cnotes/schema";
 
 export async function userExistsInNotesDb(email: string) {
   const existing = await notesdb
