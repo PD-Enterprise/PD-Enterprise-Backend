@@ -2,13 +2,12 @@ import { eq } from "drizzle-orm";
 import { notesdb } from "../db/cnotes";
 import { user as noteUser } from "../db/cnotes/schema";
 
-async function userExistsInNotesDb(email: string) {
+export async function userExistsInNotesDb(email: string) {
   const existing = await notesdb
     .select({ id: noteUser.id })
     .from(noteUser)
     .where(eq(noteUser.email, email))
     .limit(1);
+
   return existing.length > 0;
 }
-
-export { userExistsInNotesDb };

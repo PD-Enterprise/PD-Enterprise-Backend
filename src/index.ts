@@ -13,13 +13,11 @@ dotenv.config();
 */
 app.notFound((c) => {
   c.status(404);
-  const returnData = returnJson(404, "Endpoint not defined", null, null);
-  return c.json(returnData);
+  return c.json(returnJson(404, "Endpoint not defined", null, null));
 });
 app.onError((err, c) => {
   c.status(500);
-  const returnData = returnJson(500, "Internal Server Error", null, err);
-  return c.json(returnData);
+  return c.json(returnJson(500, "Internal Server Error", null, err));
 });
 
 /*
