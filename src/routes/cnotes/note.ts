@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { notesdb } from "../../db/cnotes";
-import { notes, academicLevel } from "../../../drizzle/cnotes/schema";
+import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
 import { userExistsInNotesDb } from "../../utils/userExistsInNoteDb";
+import { returnJson } from "../../utils/returnJson";
 
 const noteRouter = new Hono();
 
@@ -10,65 +11,49 @@ noteRouter.get("/note/:slug", async (c) => {
   const slug = await c.req.param("slug");
   if (!slug) {
     c.status(400);
-    return c.json({
-      status: 400,
-      message: "Missing slug",
-      data: null,
-      error: null,
-    });
+    return c.json(returnJson(400, "Missing slug", null, null));
   }
+
   try {
-    const noteResult = await notesdb
+    const note = await notesdb
       .select({
-        noteId: notes.noteId,
         title: notes.title,
         slug: notes.slug,
         content: notes.content,
         dateCreated: notes.dateCreated,
         dateUpdated: notes.dateUpdated,
-        academicLevel: academicLevel.academicLevel,
-        grade: academicLevel.grade,
         topic: notes.topic,
         type: notes.type,
+        visibility: notes.visibility,
+        academicLevel: academicLevel.academicLevel,
+        year: notes.year,
         language: notes.language,
         keywords: notes.keywords,
-        year: notes.year,
-        visibility: notes.visibility,
       })
       .from(notes)
       .innerJoin(academicLevel, eq(notes.academicLevel, academicLevel.id))
       .where(eq(notes.slug, slug));
 
-    console.log(noteResult);
-
-    if (!noteResult || noteResult.length === 0) {
+    if (!note || note.length === 0) {
       c.status(404);
-      return c.json({
-        status: 404,
-        message: "Note not found",
-        data: null,
-        error: null,
-      });
+      return c.json(returnJson(404, "Note not found.", null, null));
     }
 
-    return c.json({
-      status: 200,
-      message: "Successfully found note",
-      data: noteResult[0],
-      error: null,
-    });
+    return c.json(returnJson(200, "Successfully found note", note[0], null));
   } catch (error) {
     console.error(error);
     c.status(500);
-    return c.json({
-      status: 500,
-      message: "An unexpected error occurred. Please try again later.",
-      data: null,
-      error: null,
-    });
+    return c.json(
+      returnJson(
+        500,
+        "An unexpected error occurred. Please try again later.",
+        null,
+        null
+      )
+    );
   }
 });
-noteRouter.post("/note/text/:slug/update", async (c) => {
+noteRouter.post("/note/:slug/update", async (c) => {
   const slug = c.req.param("slug");
   const body = await c.req.json();
   const { email, data: noteData } = body;
@@ -198,42 +183,30 @@ noteRouter.post("/note/text/:slug/update", async (c) => {
 noteRouter.delete("/note/:slug/delete", async (c) => {
   const slug = c.req.param("slug");
   const body = await c.req.json();
-  if (!body.email) {
-    c.status(400);
-    return c.json({
-      status: 400,
-      message: "Missing required fields",
-      data: null,
-      error: null,
-    });
-  }
   const email = body.email;
-  // Auth check
-  if (!(await userExistsInNotesDb(email))) {
-    c.status(401);
-    return c.json({
-      status: 401,
-      message: "Unauthorized: Email does not exist in notes database.",
-      data: null,
-      error: null,
-    });
+  if (!email) {
+    c.status(400);
+    return c.json(returnJson(400, "Missing required fields", null, null));
   }
+
+  const [success, error] = await userExistsInNotesDb(email);
+  if (error || !success) {
+    return c.json(
+      returnJson(401, "Unauthorized: Email does not exist.", null, null)
+    );
+  }
+
   try {
-    const user = await notesdb
-      .select({ id: noteUser.id })
-      .from(noteUser)
-      .where(eq(noteUser.email, email))
+    const userObject = await notesdb
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.email, email))
       .limit(1);
-    if (user.length === 0) {
+    if (userObject.length === 0) {
       c.status(404);
-      return c.json({
-        status: 404,
-        message: "User not found",
-        data: null,
-        error: null,
-      });
+      return c.json(returnJson(404, "User not found.", null, null));
     }
-    const userId = user[0].id;
+    const userId = userObject[0].id;
 
     const deletedNote = await notesdb
       .delete(notes)
@@ -242,29 +215,30 @@ noteRouter.delete("/note/:slug/delete", async (c) => {
 
     if (deletedNote.length === 0) {
       c.status(404);
-      return c.json({
-        status: 404,
-        message: "Note not found or user not authorized to delete.",
-        data: null,
-        error: null,
-      });
+      return c.json(
+        returnJson(
+          404,
+          "Note not found or user not authorized to delete.",
+          null,
+          null
+        )
+      );
     }
 
-    return c.json({
-      status: 200,
-      message: "Note deleted successfully",
-      data: deletedNote,
-      error: null,
-    });
+    return c.json(
+      returnJson(200, "Note deleted successfully", deletedNote, null)
+    );
   } catch (error) {
     console.error(error);
     c.status(500);
-    return c.json({
-      status: 500,
-      message: "An unexpected error occurred. Please try again later.",
-      data: null,
-      error: null,
-    });
+    return c.json(
+      returnJson(
+        500,
+        "An unexpected error occurred. Please try again later.",
+        null,
+        null
+      )
+    );
   }
 });
 
