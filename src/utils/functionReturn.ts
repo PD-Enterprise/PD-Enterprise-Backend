@@ -1,7 +1,9 @@
 export function functionReturn(
   successState: boolean,
   errorState: boolean,
-  message: string
+  message: string,
+  data: any = null,
+  error: any = null
 ) {
   return [successState, errorState, message];
 }

@@ -9,13 +9,13 @@ export async function userExistsInMainDb(email: string) {
   }
 
   try {
-    const user = await db
+    const userIdList = await db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
 
-    const userExists = user.length > 0;
+    const userExists = userIdList.length > 0;
 
     if (userExists) {
       return functionReturn(userExists, false, "User found.");

@@ -57,7 +57,7 @@ app.use("*", rateLimiter(60));
 app.route("/", root);
 app.route("/users", usersRouter);
 app.route("/pd-enterprise", pdEnterpriseRouter);
-app.route("/ai", aiRouter);
-app.route("/notes", notesRouter);
+app.route("/grade-ai", aiRouter);
+app.route("/cnotes", notesRouter);
 
 export default app;

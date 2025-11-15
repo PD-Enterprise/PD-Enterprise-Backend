@@ -15,7 +15,7 @@ export const noteSchema = z.object({
 
     type: z.string().min(1),
     visibility: z.string().max(255).trim(),
-    year: z.number().int().positive().optional(),
+    year: z.number().int().positive(),
     language: z.string().max(255).trim(),
     keywords: z.string().optional(),
   }),

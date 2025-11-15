@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, foreignKey, unique, date, timestamp } from "drizzle-orm/pg-core"
+import { pgTable, serial, varchar, text, foreignKey, unique, date, timestamp, integer } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -11,7 +11,6 @@ export const user = pgTable("user", {
 
 export const academicLevel = pgTable("academic_level", {
 	id: serial().primaryKey().notNull(),
-	grade: integer(),
 	academicLevel: varchar("academic_level", { length: 255 }),
 });
 
