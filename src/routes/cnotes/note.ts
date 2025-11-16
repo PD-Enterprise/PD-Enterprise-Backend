@@ -55,7 +55,8 @@ noteRouter.get("/:slug", async (c) => {
     );
   }
 });
-noteRouter.post("/note/:slug/update", async (c) => {
+
+noteRouter.post("/:slug/update", async (c) => {
   const slug = c.req.param("slug");
 
   const body = await c.req.json();
@@ -171,7 +172,8 @@ noteRouter.post("/note/:slug/update", async (c) => {
     );
   }
 });
-noteRouter.delete("/note/:slug/delete", async (c) => {
+
+noteRouter.delete("/:slug/delete", async (c) => {
   const slug = c.req.param("slug");
   const body = await c.req.json();
   const email = body.email;
