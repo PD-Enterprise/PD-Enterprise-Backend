@@ -9,7 +9,7 @@ import { generateSlug } from "../../utils/generateSlug";
 
 const noteRouter = new Hono();
 
-noteRouter.get("/note/:slug", async (c) => {
+noteRouter.get("/:slug", async (c) => {
   const slug = await c.req.param("slug");
   if (!slug) {
     c.status(400);

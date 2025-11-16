@@ -7,16 +7,18 @@ import { returnJson } from "../../utils/returnJson";
 
 const notesRouter = new Hono();
 
-notesRouter.post("/notes", async (c) => {
+notesRouter.post("/", async (c) => {
   const body = await c.req.json();
   const email = body.email;
   if (!email) {
+    console.error("Email not provided");
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
   const [success, error] = await userExistsInNotesDb(email);
   if (error || !success) {
+    console.error(error);
     return c.json(
       returnJson(401, "Unauthorized: Email does not exist.", null, null)
     );

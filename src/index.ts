@@ -22,6 +22,7 @@ app.notFound((c) => {
   return c.json(returnJson(404, "Endpoint not defined", null, null));
 });
 app.onError((err, c) => {
+  console.error(err);
   c.status(500);
   return c.json(returnJson(500, "Internal Server Error", null, err));
 });

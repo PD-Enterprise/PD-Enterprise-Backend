@@ -9,9 +9,10 @@ import { generateSlug } from "../../utils/generateSlug";
 
 const newNoteRouter = new Hono();
 
-newNoteRouter.post("/new-note/:type", async (c) => {
+newNoteRouter.post("/:type", async (c) => {
   const type = await c.req.param("type");
   if (!type) {
+    console.error("Type not provided");
     c.status(400);
     return c.json(returnJson(400, "Missing slug", null, null));
   }
@@ -19,6 +20,7 @@ newNoteRouter.post("/new-note/:type", async (c) => {
   const body = await c.req.json();
   const result = noteSchema.safeParse(body);
   if (!result.success) {
+    console.error(result.error);
     c.status(400);
     return c.json(returnJson(400, "Invalid input", null, result.error));
   }
@@ -26,14 +28,16 @@ newNoteRouter.post("/new-note/:type", async (c) => {
   const email = sanitized.email;
   const note = sanitized.note;
   if (!email || !note) {
+    console.error("Email or note not provided");
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
   const [success, error] = await userExistsInNotesDb(email);
   if (error || !success) {
+    console.error(error);
     return c.json(
-      returnJson(401, "Unauthorized: Email does not exist.", null, null)
+      returnJson(401, "Unauthorized: Email does not exist.", null, error)
     );
   }
 
@@ -49,6 +53,7 @@ newNoteRouter.post("/new-note/:type", async (c) => {
     !note.language ||
     !note.keywords
   ) {
+    console.error("Missing required fields in note data");
     c.status(400);
     return c.json(
       returnJson(400, "Missing required fields in note data", null, null)
@@ -61,7 +66,7 @@ newNoteRouter.post("/new-note/:type", async (c) => {
   try {
     const existingUser = await notesdb
       .select({ id: user.id })
-      .from(notes)
+      .from(user)
       .where(eq(user.email, email))
       .limit(1);
     if (existingUser.length > 0) {
