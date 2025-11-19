@@ -48,8 +48,8 @@ app.use(
 app.use("/", rateLimiter());
 app.use("/pd-enterprise/blog/posts", rateLimiter());
 app.use("/pd-enterprise/blog/posts/:slug", rateLimiter());
-app.use("/notes/note/:slug", rateLimiter());
-app.use("/ai/chat/:modal", rateLimiter(15));
+app.use("/note/:slug", rateLimiter());
+app.use("/grade-ai/chat/:modal", rateLimiter(15));
 app.use("*", rateLimiter(60));
 
 /*
