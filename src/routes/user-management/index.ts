@@ -77,7 +77,7 @@ usersRouter.post("/new-user", async (c) => {
   const name = body.name;
   const email = body.email;
 
-  if (email) {
+  if (!email || !name) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }

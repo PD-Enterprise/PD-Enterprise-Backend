@@ -82,6 +82,7 @@ noteRouter.post("/:slug/update", async (c) => {
 
   if (
     !note.title ||
+    !note.slug ||
     !note.content ||
     !note.dateCreated ||
     !note.academicLevel ||
@@ -98,6 +99,7 @@ noteRouter.post("/:slug/update", async (c) => {
   }
 
   let academicLevelId;
+  let newSlug: string = note.slug;
 
   try {
     const userObject = await notesdb
@@ -110,6 +112,16 @@ noteRouter.post("/:slug/update", async (c) => {
       return c.json(returnJson(404, "User not found", null, null));
     }
     const userId = userObject[0].id;
+
+    const oldTitle = await notesdb
+      .select({ title: notes.title })
+      .from(notes)
+      .where(eq(notes.slug, slug))
+      .limit(1);
+
+    if (oldTitle[0].title !== note.title) {
+      newSlug = generateSlug(note.title);
+    }
 
     const existingacademicLevel = await notesdb
       .select({ id: academicLevel.id })
@@ -130,7 +142,7 @@ noteRouter.post("/:slug/update", async (c) => {
       .update(notes)
       .set({
         title: note.title,
-        slug: generateSlug(note.title),
+        slug: newSlug,
         content: note.content,
         dateCreated: note.dateCreated,
         dateUpdated: new Date().toISOString(),
