@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and } from "drizzle-orm";
+import { eq, and, is } from "drizzle-orm";
 import { notesdb } from "../../db/cnotes";
 import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
 import { userExistsInNotesDb } from "../../utils/userExistsInNoteDb";
@@ -9,15 +9,24 @@ import { generateSlug } from "../../utils/generateSlug";
 
 const noteRouter = new Hono();
 
-noteRouter.get("/:slug", async (c) => {
+noteRouter.post("/:slug", async (c) => {
   const slug = await c.req.param("slug");
   if (!slug) {
     c.status(400);
     return c.json(returnJson(400, "Missing slug", null, null));
   }
 
+  const body = await c.req.json();
+  let isAuthenticated: boolean;
+  const email = body.email;
+  if (email == "null") {
+    isAuthenticated = false;
+  } else {
+    isAuthenticated = true;
+  }
+
   try {
-    const note = await notesdb
+    const noteObject = await notesdb
       .select({
         title: notes.title,
         slug: notes.slug,
@@ -27,6 +36,7 @@ noteRouter.get("/:slug", async (c) => {
         topic: notes.topic,
         type: notes.type,
         visibility: notes.visibility,
+        email: notes.email,
         academicLevel: academicLevel.academicLevel,
         year: notes.year,
         language: notes.language,
@@ -36,12 +46,50 @@ noteRouter.get("/:slug", async (c) => {
       .innerJoin(academicLevel, eq(notes.academicLevel, academicLevel.id))
       .where(eq(notes.slug, slug));
 
-    if (!note || note.length === 0) {
+    if (!noteObject || noteObject.length === 0) {
       c.status(404);
       return c.json(returnJson(404, "Note not found.", null, null));
     }
 
-    return c.json(returnJson(200, "Successfully found note", note[0], null));
+    const note = noteObject[0];
+    let isOwner: boolean = false;
+
+    if (isAuthenticated) {
+      const userObject = await notesdb
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.email, email))
+        .limit(1);
+
+      if (userObject.length === 0) {
+      }
+      const userId = userObject[0].id;
+      isOwner = note.email === userId;
+    }
+
+    if (note.visibility === "public") {
+      return c.json(returnJson(200, "Successfully found note", note, null));
+    } else if (note.visibility === "private") {
+      if (!isAuthenticated) {
+        c.status(401);
+        return c.json(
+          returnJson(401, "Unauthorized: Not authenticated.", null, null)
+        );
+      }
+      if (!isOwner) {
+        c.status(403);
+        return c.json(
+          returnJson(
+            403,
+            "You do not have permission to view this private note.",
+            null,
+            null
+          )
+        );
+      }
+
+      return c.json(returnJson(200, "Successfully found note", note, null));
+    }
   } catch (error) {
     console.error(error);
     c.status(500);
