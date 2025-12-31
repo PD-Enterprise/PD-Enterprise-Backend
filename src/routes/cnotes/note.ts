@@ -110,6 +110,7 @@ noteRouter.post("/:slug/update", async (c) => {
   const body = await c.req.json();
   const result = noteSchema.safeParse(body);
   if (!result.success) {
+    console.log(result.error);
     c.status(400);
     return c.json(returnJson(400, "Invalid input", null, result.error));
   }

@@ -6,7 +6,7 @@ export const noteSchema = z.object({
     title: z.string().min(1).max(255).trim(),
     slug: z.string().min(1).max(255).trim().optional(),
 
-    content: z.string().max(5000).trim(),
+    content: z.string().trim(),
 
     dateCreated: z.string(),
 
