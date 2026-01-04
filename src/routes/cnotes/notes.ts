@@ -31,6 +31,7 @@ notesRouter.post("/", async (c) => {
         slug: notes.slug,
         content: notes.content,
         dateCreated: notes.dateCreated,
+        dateUpdated: notes.dateUpdated,
         topic: notes.topic,
         type: notes.type,
         visibility: notes.visibility,
