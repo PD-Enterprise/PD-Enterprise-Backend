@@ -1,5 +1,6 @@
 import { GeminiProvider } from "./gemini-provider";
 import { GroqProvider } from "./groq-provider";
+import { OpenRouterProvider } from "./openrouter-provider";
 import { ChatRequestBody, InferenceProvider } from "./types";
 
 type ProviderName = ChatRequestBody["provider"];
@@ -17,6 +18,8 @@ export function resolveProvider(
   switch (provider) {
     case "groq":
       return new GroqProvider(env.GROQ_API_KEY);
+    case "openrouter":
+      return new OpenRouterProvider(env.OPENROUTER_API_KEY);
     case "gemini":
       return new GeminiProvider(env.GEMINI_API_KEY);
     default:
