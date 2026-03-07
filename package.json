@@ -5,9 +5,12 @@
     "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
+    "@google/genai": "^1.44.0",
     "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.0.1",
+    "@openrouter/sdk": "^0.9.11",
     "@types/node": "^24.3.1",
+    "convex": "^1.32.0",
     "cookie": "^1.0.2",
     "dotenv": "^17.2.2",
     "drizzle-orm": "^0.44.5",
