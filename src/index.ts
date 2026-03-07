@@ -39,7 +39,7 @@ app.use(
       }
       return null;
     },
-  })
+  }),
 );
 
 /*
@@ -49,7 +49,7 @@ app.use("/", rateLimiter());
 app.use("/pd-enterprise/blog/posts", rateLimiter());
 app.use("/pd-enterprise/blog/posts/:slug", rateLimiter());
 app.use("/note/:slug", rateLimiter());
-app.use("/grade-ai/chat/:modal", rateLimiter(15));
+app.use("/grade-ai/chat/", rateLimiter(15));
 app.use("*", rateLimiter(60));
 
 /*

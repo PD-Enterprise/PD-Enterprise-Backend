@@ -1,3 +1,4 @@
+import { GeminiProvider } from "./gemini-provider";
 import { GroqProvider } from "./groq-provider";
 import { ChatRequestBody, InferenceProvider } from "./types";
 
@@ -16,6 +17,8 @@ export function resolveProvider(
   switch (provider) {
     case "groq":
       return new GroqProvider(env.GROQ_API_KEY);
+    case "gemini":
+      return new GeminiProvider(env.GEMINI_API_KEY);
     default:
       throw new Error(`Unkown provider: ${provider}`);
   }
