@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { handleChat } from "./routes/chat-handler";
+import { returnJson } from "../../utils/returnJson";
+import { modelList } from "./utils/modelList";
 
 const aiRouter = new Hono();
 
@@ -22,5 +24,9 @@ const aiRouter = new Hono();
  *   on error:      event: error\ndata: {"message":"..."}
  */
 aiRouter.post("/chat", handleChat);
+
+aiRouter.get("/get-model-list", async (c) => {
+  return c.json(returnJson(200, "success", modelList, null));
+});
 
 export default aiRouter;
