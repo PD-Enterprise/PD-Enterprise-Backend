@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Context, Hono } from "hono";
 import { eq } from "drizzle-orm";
 import validator from "validator";
 import { notesdb } from "../../db/cnotes";
@@ -9,8 +9,9 @@ import { userExistsInMainDb } from "../../utils/userExistsInMainDb";
 import { returnJson } from "../../utils/returnJson";
 import { api } from "../../../convex/_generated/api";
 import { ConvexClient } from "convex/browser";
+import { Bindings } from "../../types";
 
-const usersRouter = new Hono();
+const usersRouter = new Hono<{ Bindings: Bindings }>();
 
 usersRouter.post("/roles/get-role", async (c) => {
   const body = await c.req.json();
@@ -74,8 +75,8 @@ usersRouter.post("/roles/get-role", async (c) => {
     );
   }
 });
-usersRouter.post("/new-user", async (c) => {
-  const convexClient = new ConvexClient(process.env.CONVEX_URL!);
+usersRouter.post("/new-user", async (c: Context) => {
+  const convexClient = new ConvexClient(c.env.CONVEX_API_URL);
 
   const body = await c.req.json();
   const name = body.name;
