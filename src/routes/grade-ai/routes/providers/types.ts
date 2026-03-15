@@ -12,7 +12,7 @@ export interface ChatRequestBody {
   provider: "groq" | "openrouter" | "gemini";
   model: string;
   mode: ModeType;
-  histroy: ChatMessage[];
+  history: ChatMessage[];
   conversationId: string;
 }
 
