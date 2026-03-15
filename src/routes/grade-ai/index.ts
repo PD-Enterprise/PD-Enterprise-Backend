@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { handleChat } from "./routes/chat-handler";
 import { returnJson } from "../../utils/returnJson";
 import { modelList } from "./utils/modelList";
+import { Bindings } from "../../types";
 
-const aiRouter = new Hono();
+const aiRouter = new Hono<{ Bindings: Bindings }>();
 
 /**
  * POST /grade-ai/chat

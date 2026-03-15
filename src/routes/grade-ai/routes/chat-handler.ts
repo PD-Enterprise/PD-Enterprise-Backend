@@ -8,6 +8,7 @@ import {
 } from "../utils/stream-utils";
 import { resolveProvider } from "./providers/provider-factory";
 import z from "zod";
+import { Bindings } from "../../../types";
 
 export const chatRequestSchema = z.object({
   prompt: z.string().min(1).max(2000).trim(),
@@ -38,12 +39,10 @@ function buildMessages(
   ];
 }
 
-export async function handleChat(c: Context): Promise<Response> {
-  const env = c.env as {
-    GROQ_API_KEY: string;
-    OPENROUTER_API_KEY: string;
-    GEMINI_API_KEY: string;
-  };
+export async function handleChat(
+  c: Context<{ Bindings: Bindings }>,
+): Promise<Response> {
+  const env = c.env;
 
   const rawBody = await c.req.json().catch(() => null);
   if (!rawBody) {

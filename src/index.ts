@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { validateRoute } from "./utils/validateRoute";
-import dotenv from "dotenv";
 import { returnJson } from "./utils/returnJson";
 import { rateLimiter } from "./utils/ratelimiter";
 
@@ -10,9 +9,9 @@ import usersRouter from "./routes/user-management";
 import pdEnterpriseRouter from "./routes/pd-enterprise";
 import aiRouter from "./routes/grade-ai";
 import notesRouter from "./routes/cnotes";
+import { Bindings } from "./types";
 
-const app = new Hono();
-dotenv.config();
+const app = new Hono<{ Bindings: Bindings }>();
 
 /*
   Error Handling
