@@ -5,6 +5,9 @@ export class GroqProvider implements InferenceProvider {
   private client: Groq;
 
   constructor(apiKey: string) {
+    if (!apiKey) {
+      throw new Error("The GROQ_API_KEY is missing or empty.");
+    }
     this.client = new Groq({ apiKey });
   }
 

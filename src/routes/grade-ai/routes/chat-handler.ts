@@ -43,6 +43,9 @@ export async function handleChat(
   c: Context<{ Bindings: Bindings }>,
 ): Promise<Response> {
   const env = c.env;
+  if (!env.GROQ_API_KEY || !env.OPENROUTER_API_KEY || !env.GEMINI_API_KEY) {
+    console.error("CRITICAL: Missing API keys");
+  }
 
   const rawBody = await c.req.json().catch(() => null);
   if (!rawBody) {
