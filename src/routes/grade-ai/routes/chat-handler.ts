@@ -17,7 +17,7 @@ export const chatRequestSchema = z.object({
   history: z
     .array(
       z.object({
-        role: z.enum(["user", "assitant", "system"]),
+        role: z.enum(["user", "assistant", "system"]),
         content: z.string(),
       }),
     )
@@ -52,6 +52,7 @@ export async function handleChat(c: Context): Promise<Response> {
 
   const parsed = chatRequestSchema.safeParse(rawBody);
   if (!parsed.success) {
+    console.log("Validation failed", parsed.error.issues);
     return c.json(
       { error: "Validation failed", issues: parsed.error.issues },
       400,
