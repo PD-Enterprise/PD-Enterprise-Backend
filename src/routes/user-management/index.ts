@@ -7,6 +7,8 @@ import { db } from "../../db/users";
 import { users } from "../../../drizzle/users/schema";
 import { userExistsInMainDb } from "../../utils/userExistsInMainDb";
 import { returnJson } from "../../utils/returnJson";
+import { api } from "../../../convex/_generated/api";
+import { ConvexClient } from "convex/browser";
 
 const usersRouter = new Hono();
 
@@ -22,7 +24,7 @@ usersRouter.post("/roles/get-role", async (c) => {
   const [success, error] = await userExistsInMainDb(email);
   if (error || !success) {
     return c.json(
-      returnJson(401, "Unauthorized: Email does not exist.", null, null)
+      returnJson(401, "Unauthorized: Email does not exist.", null, null),
     );
   }
 
@@ -40,7 +42,7 @@ usersRouter.post("/roles/get-role", async (c) => {
           .where(eq(users.email, email));
 
         return c.json(
-          returnJson(200, "Role updated successfully", "tier-1", null)
+          returnJson(200, "Role updated successfully", "tier-1", null),
         );
       } catch (error) {
         console.error(error);
@@ -50,13 +52,13 @@ usersRouter.post("/roles/get-role", async (c) => {
             500,
             "An unexpected error occurred. Please try again later.",
             null,
-            null
-          )
+            null,
+          ),
         );
       }
     } else {
       return c.json(
-        returnJson(200, "Role found successfully", role[0].role, null)
+        returnJson(200, "Role found successfully", role[0].role, null),
       );
     }
   } catch (error) {
@@ -67,22 +69,26 @@ usersRouter.post("/roles/get-role", async (c) => {
         500,
         "An unexpected error occurred. Please try again later.",
         null,
-        null
-      )
+        null,
+      ),
     );
   }
 });
 usersRouter.post("/new-user", async (c) => {
+  const convexClient = new ConvexClient(process.env.CONVEX_URL!);
+
   const body = await c.req.json();
   const name = body.name;
   const email = body.email;
+  const avatarUrl = body.avatarUrl;
 
-  if (!email || !name) {
+  if (!email || !name || !avatarUrl) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
   if (!validator.isEmail(email)) {
+    console.log("Invalid email format");
     c.status(400);
     return c.json(returnJson(400, "Invalid email format", null, null));
   }
@@ -96,16 +102,12 @@ usersRouter.post("/new-user", async (c) => {
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
-
-    if (userIdList.length > 0) {
-      c.status(400);
-      return c.json(returnJson(400, "User already exists", null, null));
+    if (userIdList.length == 0) {
+      await db
+        .insert(users)
+        .values({ name, email, membership: "tier-1" })
+        .returning({ id: users.id });
     }
-
-    const user = await db
-      .insert(users)
-      .values({ name, email, membership: "tier-1" })
-      .returning({ id: users.id });
 
     /*
       Notes Database
@@ -115,16 +117,18 @@ usersRouter.post("/new-user", async (c) => {
       .from(noteUser)
       .where(eq(noteUser.email, email))
       .limit(1);
-
-    if (noteUserIdList.length > 0) {
-      c.status(400);
-      return c.json(
-        returnJson(400, "User already exists in notes", null, null)
-      );
+    if (noteUserIdList.length == 0) {
+      await notesdb.insert(noteUser).values({ email });
     }
-    await notesdb.insert(noteUser).values({ email });
 
-    return c.json(returnJson(200, "User created successfully", user[0], null));
+    // GradeAI Database
+    await convexClient.mutation(api.users.insertNewUser, {
+      email,
+      name,
+      avatarUrl,
+    });
+
+    return c.json(returnJson(200, "User created successfully", null, null));
   } catch (error) {
     console.error(error);
     c.status(500);
@@ -133,8 +137,8 @@ usersRouter.post("/new-user", async (c) => {
         500,
         "An unexpected error occurred. Please try again later.",
         null,
-        null
-      )
+        null,
+      ),
     );
   }
 });
