@@ -5,31 +5,31 @@
     "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
-    "@google/genai": "^1.44.0",
+    "@google/genai": "^1.50.1",
     "@google/generative-ai": "^0.24.1",
-    "@neondatabase/serverless": "^1.0.1",
+    "@neondatabase/serverless": "^1.1.0",
     "@openrouter/sdk": "^0.9.11",
-    "@types/node": "^24.3.1",
-    "convex": "^1.32.0",
-    "cookie": "^1.0.2",
-    "dotenv": "^17.2.2",
-    "drizzle-orm": "^0.44.5",
+    "@types/node": "^24.12.2",
+    "convex": "^1.36.1",
+    "cookie": "^1.1.1",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.44.7",
     "groq-sdk": "^0.32.0",
-    "hono": "^4.9.6",
+    "hono": "^4.12.15",
     "hono-rate-limit": "^1.0.2",
-    "nanoid": "^5.1.5",
-    "openai": "^6.27.0",
+    "nanoid": "^5.1.9",
+    "openai": "^6.34.0",
     "string-hash": "^1.1.3",
     "uuid": "^12.0.0",
-    "validator": "^13.15.15",
-    "zod": "^4.1.5"
+    "validator": "^13.15.35",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250906.0",
+    "@cloudflare/workers-types": "^4.20260426.1",
     "@types/string-hash": "^1.1.3",
-    "@types/validator": "^13.15.3",
-    "drizzle-kit": "^0.31.4",
-    "tsx": "^4.20.5",
-    "wrangler": "^4.34.0"
+    "@types/validator": "^13.15.10",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0",
+    "wrangler": "^4.85.0"
   }
 }
