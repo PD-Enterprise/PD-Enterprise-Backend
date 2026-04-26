@@ -2,9 +2,9 @@ import { Context } from "hono";
 import { getSystemPrompt } from "./prompts/system-prompts";
 import { ChatMessage } from "./providers/types";
 import {
-  SSE_HEADERS,
-  formatSSEChunk,
-  formatSSEDone,
+  NDJSON_HEADERS,
+  formatNDJSONChunk,
+  formatNDJSONDone,
 } from "../utils/stream-utils";
 import { resolveProvider } from "./providers/provider-factory";
 import z from "zod";
@@ -79,11 +79,15 @@ export async function handleChat(
 
       try {
         for await (const chunk of inferenceProvider.stream(messages, model)) {
-          controller.enqueue(encode(formatSSEChunk(chunk)));
+          controller.enqueue(encode(formatNDJSONChunk(chunk)));
         }
-        controller.enqueue(encode(formatSSEDone()));
+        controller.enqueue(encode(formatNDJSONDone()));
       } catch (err: any) {
-        const errorChunk = `event: error\ndata: ${JSON.stringify({ message: err.message })}\n\n`;
+        const errorChunk =
+          JSON.stringify({
+            type: "error",
+            message: err.message,
+          }) + "\n";
         controller.enqueue(encode(errorChunk));
       } finally {
         controller.close();
@@ -91,5 +95,5 @@ export async function handleChat(
     },
   });
 
-  return new Response(stream, { headers: SSE_HEADERS });
+  return new Response(stream, { headers: NDJSON_HEADERS });
 }

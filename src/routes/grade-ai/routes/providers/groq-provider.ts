@@ -21,10 +21,19 @@ export class GroqProvider implements InferenceProvider {
       stream: true,
     });
 
+    let textBuffer = "";
+
     for await (const chunk of response) {
       const delta = chunk.choices[0]?.delta?.content;
+      // console.log(JSON.stringify(delta));
+
       if (delta) {
-        yield { type: "delta", delta };
+        textBuffer += delta;
+
+        if (textBuffer.length > 20) {
+          yield { type: "delta", delta: textBuffer };
+          textBuffer = "";
+        }
       }
 
       if (chunk.x_groq?.usage) {
@@ -38,6 +47,10 @@ export class GroqProvider implements InferenceProvider {
           },
         };
       }
+    }
+
+    if (textBuffer.length > 0) {
+      yield { type: "delta", delta: textBuffer };
     }
   }
 }

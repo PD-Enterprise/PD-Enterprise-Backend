@@ -34,22 +34,30 @@ export class GeminiProvider implements InferenceProvider {
       message: lastMessage.content,
     });
 
+    let buffer = "";
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
 
     for await (const chunk of result) {
       const delta = chunk.text;
+
       if (delta) {
-        yield {
-          type: "delta",
-          delta,
-        };
+        buffer += delta;
+
+        if (buffer.length > 20) {
+          yield { type: "delta", delta: buffer };
+          buffer = "";
+        }
       }
 
       if (chunk.usageMetadata) {
         totalPromptTokens = chunk.usageMetadata.promptTokenCount ?? 0;
         totalCompletionTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
       }
+    }
+
+    if (buffer.length > 0) {
+      yield { type: "delta", delta: buffer };
     }
 
     yield {

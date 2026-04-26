@@ -27,17 +27,29 @@ export class OpenRouterProvider implements InferenceProvider {
       stream_options: { include_usage: true },
     });
 
+    let buffer = "";
+
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
+
       if (delta) {
-        completionTokens++;
-        yield { type: "delta", delta };
+        buffer += delta;
+
+        if (buffer.length > 20) {
+          completionTokens++;
+          yield { type: "delta", delta: buffer };
+          buffer = "";
+        }
       }
 
       if (chunk.usage) {
         promptTokens = chunk.usage.prompt_tokens ?? 0;
         completionTokens = chunk.usage.completion_tokens ?? completionTokens;
       }
+    }
+
+    if (buffer.length > 0) {
+      yield { type: "delta", delta: buffer };
     }
 
     yield {

@@ -1,16 +1,14 @@
 import type { StreamChunk } from "../routes/providers/types";
 
-export function formatSSEChunk(chunk: StreamChunk): string {
-  return `data: ${JSON.stringify(chunk)}\n\n`;
+export function formatNDJSONChunk(chunk: StreamChunk): string {
+  return JSON.stringify(chunk) + "\n";
 }
 
-export function formatSSEDone(): string {
-  return `data: [DONE]\n\n`;
+export function formatNDJSONDone(): string {
+  return JSON.stringify({ type: "done" }) + "\n";
 }
 
-export const SSE_HEADERS: Record<string, string> = {
-  "Content-Type": "text/event-stream",
+export const NDJSON_HEADERS: Record<string, string> = {
+  "Content-Type": "application/x-ndjson",
   "Cache-Control": "no-cache",
-  Connection: "keel-alive",
-  "X-Accel-Buffering": "no",
 };
