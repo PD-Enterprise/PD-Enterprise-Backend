@@ -33,10 +33,9 @@ export const getAcademicLevel = query({
       return null;
     }
 
-    const academicLevelIndex = await ctx.db
-      .query("academicLevel")
-      .withIndex("by_id", (q) => q.eq("_id", user.academicLevel))
-      .unique();
+    const academicLevelIndex = user.academicLevel
+      ? await ctx.db.get(user.academicLevel)
+      : null;
 
     return academicLevelIndex;
   },
