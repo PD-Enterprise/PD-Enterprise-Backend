@@ -65,10 +65,10 @@ export const updateAcademicLevel = mutation({
       await ctx.db.patch(user._id, {
         academicLevel: academicLevelId._id,
       });
-      return ctx.db.get(user.academicLevel);
+      return await ctx.db.get(user._id);
     } catch (error) {
       console.error(error);
-      return null;
+      throw error;
     }
   },
 });
