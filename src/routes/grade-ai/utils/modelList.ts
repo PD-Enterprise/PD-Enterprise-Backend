@@ -1,5 +1,5 @@
 type ModelList = {
-  providerName: "groq" | "openrouter" | "gemini";
+  providerName: "groq" | "gemini";
   modelName: string;
   modelString: string;
   description: string;
@@ -17,12 +17,6 @@ export const modelList: ModelList[] = [
     modelName: "GPT OSS 20B",
     modelString: "openai/gpt-oss-20b",
     description: "gpt-oss-20b is a language model trained by OpenAI",
-  },
-  {
-    providerName: "openrouter",
-    modelName: "Qwen 3 4B",
-    modelString: "qwen/qwen3-4b:free",
-    description: "Qwen 3.4 4B is a language model trained by Alibaba",
   },
   {
     providerName: "gemini",

@@ -9,7 +9,7 @@ export type ModeType = "socratic" | "direct";
 
 export interface ChatRequestBody {
   prompt: string;
-  provider: "groq" | "openrouter" | "gemini";
+  provider: "groq" | "gemini";
   model: string;
   mode: ModeType;
   history: ChatMessage[];

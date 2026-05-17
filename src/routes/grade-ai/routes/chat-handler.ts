@@ -9,10 +9,12 @@ import {
 import { resolveProvider } from "./providers/provider-factory";
 import z from "zod";
 import { Bindings } from "../../../types";
+import { ConvexClient } from "convex/browser";
+import { api } from "../../../../convex/_generated/api";
 
 export const chatRequestSchema = z.object({
   prompt: z.string().min(1).max(2000).trim(),
-  provider: z.enum(["groq", "openrouter", "gemini"]),
+  provider: z.enum(["groq", "gemini"]),
   model: z.string().min(1),
   mode: z.enum(["socratic", "direct"]),
   history: z
@@ -24,14 +26,16 @@ export const chatRequestSchema = z.object({
     )
     .default([]),
   conversationId: z.string().min(1),
+  email: z.string().min(10),
 });
 
 function buildMessages(
   prompt: string,
   history: ChatMessage[],
   mode: "socratic" | "direct",
+  academicLevel: string,
 ): ChatMessage[] {
-  const systemPrompt = getSystemPrompt(mode);
+  const systemPrompt = getSystemPrompt(mode, academicLevel);
   return [
     { role: "system", content: systemPrompt },
     ...history,
@@ -39,11 +43,15 @@ function buildMessages(
   ];
 }
 
-export async function handleChat(
-  c: Context<{ Bindings: Bindings }>,
-): Promise<Response> {
+export async function handleChat(c: Context): Promise<Response> {
+  const convexClient = new ConvexClient(c.env.CONVEX_URL);
+  if (!convexClient) {
+    console.error("CRITICAL: Missing Convex URL");
+    return new Response("CRITICAL: Missing Convex URL", { status: 500 });
+  }
+
   const env = c.env;
-  if (!env.GROQ_API_KEY || !env.OPENROUTER_API_KEY || !env.GEMINI_API_KEY) {
+  if (!env.GROQ_API_KEY || !env.GEMINI_API_KEY) {
     console.error("CRITICAL: Missing API keys");
   }
 
@@ -61,7 +69,7 @@ export async function handleChat(
     );
   }
 
-  const { prompt, provider, model, mode, history, conversationId } =
+  const { prompt, provider, model, mode, history, conversationId, email } =
     parsed.data;
 
   let inferenceProvider: any;
@@ -71,7 +79,19 @@ export async function handleChat(
     return c.json({ error: err.message }, 400);
   }
 
-  const messages = buildMessages(prompt, history as ChatMessage[], mode);
+  const academicLevel = await convexClient.query(api.users.getAcademicLevel, {
+    email,
+  });
+  if (!academicLevel) {
+    return new Response("CRITICAL: Missing academic level", { status: 500 });
+  }
+
+  const messages = buildMessages(
+    prompt,
+    history as ChatMessage[],
+    mode,
+    academicLevel.academicLevel,
+  );
 
   const stream = new ReadableStream({
     async start(controller) {

@@ -9,6 +9,7 @@
  */
 
 import type * as users from "../users.js";
+import type * as utils_isExistingUser from "../utils/isExistingUser.js";
 
 import type {
   ApiFromModules,
@@ -18,6 +19,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   users: typeof users;
+  "utils/isExistingUser": typeof utils_isExistingUser;
 }>;
 
 /**

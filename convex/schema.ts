@@ -7,6 +7,7 @@ export default defineSchema({
     name: v.string(),
     avatarUrl: v.optional(v.string()),
     createdAt: v.number(),
+    academicLevel: v.optional(v.id("academicLevel")),
   }).index("by_email", ["email"]),
 
   conversations: defineTable({
@@ -28,4 +29,9 @@ export default defineSchema({
     provider: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_conversation", ["conversationId"]),
+
+  academicLevel: defineTable({
+    academicLevelIndex: v.number(),
+    academicLevel: v.string(),
+  }).index("by_academic_level_index", ["academicLevelIndex"]),
 });

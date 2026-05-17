@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { isExistingUser } from "./utils/isExistingUser";
 
 export const insertNewUser = mutation({
   args: {
@@ -8,10 +9,7 @@ export const insertNewUser = mutation({
     avatarUrl: v.string(),
   },
   handler: async (ctx, args) => {
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .unique();
+    const existingUser = await isExistingUser(ctx, args.email);
 
     if (existingUser) {
       return existingUser._id;
@@ -24,5 +22,54 @@ export const insertNewUser = mutation({
       createdAt: Date.now(),
     });
     return userId;
+  },
+});
+
+export const getAcademicLevel = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const user = await isExistingUser(ctx, args.email);
+    if (!user) {
+      return null;
+    }
+
+    const academicLevelIndex = await ctx.db
+      .query("academicLevel")
+      .withIndex("by_id", (q) => q.eq("_id", user.academicLevel))
+      .unique();
+
+    return academicLevelIndex;
+  },
+});
+
+export const updateAcademicLevel = mutation({
+  args: { email: v.string(), academicLevel: v.number() },
+  handler: async (ctx, args) => {
+    const user = await isExistingUser(ctx, args.email);
+    if (!user) {
+      console.error("User does not exist");
+      return null;
+    }
+
+    const academicLevelId = await ctx.db
+      .query("academicLevel")
+      .withIndex("by_academic_level_index", (q) =>
+        q.eq("academicLevelIndex", args.academicLevel),
+      )
+      .unique();
+    if (!academicLevelId) {
+      console.error("Academic level does not exist");
+      return null;
+    }
+
+    try {
+      await ctx.db.patch(user._id, {
+        academicLevel: academicLevelId._id,
+      });
+      return ctx.db.get(user.academicLevel);
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
   },
 });

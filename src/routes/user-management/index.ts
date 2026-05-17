@@ -76,7 +76,7 @@ usersRouter.post("/roles/get-role", async (c) => {
   }
 });
 usersRouter.post("/new-user", async (c: Context) => {
-  const convexClient = new ConvexClient(c.env.CONVEX_API_URL);
+  const convexClient = new ConvexClient(c.env.CONVEX_URL);
 
   const body = await c.req.json();
   const name = body.name;
