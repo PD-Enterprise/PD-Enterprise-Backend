@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { createNotesDb } from "../../db/cnotes";
 import { noteSchema } from "../../zodSchema";
 import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
-import { userExistsInNotesDb } from "../../utils/userExistsInNoteDb";
+import { userExistsInNotesDb } from "../../db/cnotes/utils/userExistsInNoteDb";
 import { returnJson } from "../../utils/returnJson";
 import { generateSlug } from "../../utils/generateSlug";
 import { Bindings } from "../../types";

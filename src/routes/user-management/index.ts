@@ -1,20 +1,24 @@
 import { Context, Hono } from "hono";
-import { eq } from "drizzle-orm";
 import validator from "validator";
 import { createNotesDb } from "../../db/cnotes";
-import { user as noteUser } from "../../../drizzle/cnotes/schema";
 import { createUsersDb } from "../../db/users";
-import { users } from "../../../drizzle/users/schema";
-import { userExistsInMainDb } from "../../utils/userExistsInMainDb";
+import { userExistsInMainDb } from "../../db/users/utils/userExistsInMainDb";
 import { returnJson } from "../../utils/returnJson";
 import { api } from "../../../convex/_generated/api";
 import { ConvexClient } from "convex/browser";
 import { Bindings } from "../../types";
+import { getUserRole } from "./utils/getUserRole";
+import { addNewUserToMainDB } from "./utils/addNewUser";
+import { addNewUserToNotesDB } from "./utils/addNewUser";
 
 const usersRouter = new Hono<{ Bindings: Bindings }>();
 
+/**
+ * POST /users/roles/get-role
+ * Requires: email
+ * Returns: JSON
+ */
 usersRouter.post("/roles/get-role", async (c) => {
-  const db = createUsersDb(c.env.DATABASE_URL);
   const body = await c.req.json();
   const email = body.email;
 
@@ -22,6 +26,12 @@ usersRouter.post("/roles/get-role", async (c) => {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
+  if (!validator.isEmail(email)) {
+    console.log("Invalid email format");
+    c.status(400);
+    return c.json(returnJson(400, "Invalid email format", null, null));
+  }
+  const db = createUsersDb(c.env.DATABASE_URL);
 
   const [success, error] = await userExistsInMainDb(db, email);
   if (error || !success) {
@@ -31,36 +41,23 @@ usersRouter.post("/roles/get-role", async (c) => {
   }
 
   try {
-    const role = await db
-      .select({ role: users.membership })
-      .from(users)
-      .where(eq(users.email, email));
-    if (role[0].role == null || undefined || "") {
-      try {
-        const role = await db
-          .update(users)
-          .set({ membership: "tier-1" })
-          .where(eq(users.email, email));
-        return c.json(
-          returnJson(200, "Role updated successfully", "tier-1", null),
-        );
-      } catch (error) {
-        console.error(error);
-        c.status(500);
-        return c.json(
-          returnJson(
-            500,
-            "An unexpected error occurred. Please try again later.",
-            null,
-            null,
-          ),
-        );
-      }
-    } else {
+    const role = await getUserRole(db, email);
+    console.log(role);
+    if (role == "") {
+      console.error("Role not found");
+      c.status(500);
+      throw new Error("Role not found");
       return c.json(
-        returnJson(200, "Role found successfully", role[0].role, null),
+        returnJson(
+          500,
+          "Role was not found and could not be updated in the database",
+          null,
+          null,
+        ),
       );
     }
+    c.status(200);
+    return c.json(returnJson(200, "Role found successfully", role, null));
   } catch (error) {
     console.error(error);
     c.status(500);
@@ -69,16 +66,17 @@ usersRouter.post("/roles/get-role", async (c) => {
         500,
         "An unexpected error occurred. Please try again later.",
         null,
-        null,
+        error,
       ),
     );
   }
 });
+/**
+ * POST /users/roles/new-user
+ * Requires: email: string, name: string, avatarUrl: string
+ * Returns: JSON
+ */
 usersRouter.post("/new-user", async (c: Context) => {
-  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
-  const db = createUsersDb(c.env.DATABASE_URL);
-  const convexClient = new ConvexClient(c.env.CONVEX_URL);
-
   const body = await c.req.json();
   const name = body.name;
   const email = body.email;
@@ -88,49 +86,46 @@ usersRouter.post("/new-user", async (c: Context) => {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
-
   if (!validator.isEmail(email)) {
     console.log("Invalid email format");
     c.status(400);
     return c.json(returnJson(400, "Invalid email format", null, null));
   }
 
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
+  const db = createUsersDb(c.env.DATABASE_URL);
+  const convexClient = new ConvexClient(c.env.CONVEX_URL);
+
   try {
     /*
       Main Database
     */
-    const userIdList = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
-    if (userIdList.length == 0) {
-      await db
-        .insert(users)
-        .values({ name, email, membership: "tier-1" })
-        .returning({ id: users.id });
-    }
+    const userId = await addNewUserToMainDB(db, email, name);
 
     /*
       Notes Database
     */
-    const noteUserIdList = await notesdb
-      .select({ id: noteUser.id })
-      .from(noteUser)
-      .where(eq(noteUser.email, email))
-      .limit(1);
-    if (noteUserIdList.length == 0) {
-      await notesdb.insert(noteUser).values({ email });
-    }
+    const noteUserId = await addNewUserToNotesDB(notesdb, email);
 
     // GradeAI Database
-    await convexClient.mutation(api.users.insertNewUser, {
+    const convexUserId = await convexClient.mutation(api.users.insertNewUser, {
       email,
       name,
       avatarUrl,
     });
 
-    return c.json(returnJson(200, "User created successfully", null, null));
+    if (!userId || !noteUserId || !convexUserId) {
+      c.status(500);
+      return c.json(
+        returnJson(
+          500,
+          "There was an issue creating the user in the databases",
+          null,
+          null,
+        ),
+      );
+    }
+    return c.json(returnJson(200, "User created successfully", userId, null));
   } catch (error) {
     console.error(error);
     c.status(500);

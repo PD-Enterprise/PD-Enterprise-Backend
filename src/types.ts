@@ -5,3 +5,11 @@ export type Bindings = {
   DATABASE_URL: string;
   CNOTES_DB_URL: string;
 };
+
+export type functionReturnType = [
+  successState: boolean,
+  errorState: boolean,
+  message?: string,
+  data?: any,
+  error?: string,
+];
