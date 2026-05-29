@@ -7,6 +7,11 @@ import { Bindings } from "../../types";
 
 const pdEnterpriseRouter = new Hono<{ Bindings: Bindings }>();
 
+/**
+ * POST /pd-enterprise/blog/posts
+ * Requires: none
+ * Returns: JSON
+ */
 pdEnterpriseRouter.get("/blog/posts", async (c) => {
   const db = createUsersDb(c.env.DATABASE_URL);
   try {
@@ -26,9 +31,14 @@ pdEnterpriseRouter.get("/blog/posts", async (c) => {
     );
   }
 });
+/**
+ * GET /pd-enterprise/blog/posts/:slug
+ * Requires: slug
+ * Returns: JSON
+ */
 pdEnterpriseRouter.get("/blog/posts/:slug", async (c) => {
-  const db = createUsersDb(c.env.DATABASE_URL);
   const slug = c.req.param("slug");
+  const db = createUsersDb(c.env.DATABASE_URL);
 
   try {
     const post = await db.select().from(posts).where(eq(posts.slug, slug));
