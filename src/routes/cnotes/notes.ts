@@ -1,13 +1,15 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { notesdb } from "../../db/cnotes";
+import { createNotesDb } from "../../db/cnotes";
 import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
 import { userExistsInNotesDb } from "../../utils/userExistsInNoteDb";
 import { returnJson } from "../../utils/returnJson";
+import { Bindings } from "../../types";
 
-const notesRouter = new Hono();
+const notesRouter = new Hono<{ Bindings: Bindings }>();
 
 notesRouter.post("/", async (c) => {
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const body = await c.req.json();
   const email = body.email;
   if (!email) {
@@ -16,11 +18,11 @@ notesRouter.post("/", async (c) => {
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
-  const [success, error] = await userExistsInNotesDb(email);
+  const [success, error] = await userExistsInNotesDb(notesdb, email);
   if (error || !success) {
     console.error(error);
     return c.json(
-      returnJson(401, "Unauthorized: Email does not exist.", null, null)
+      returnJson(401, "Unauthorized: Email does not exist.", null, null),
     );
   }
 
@@ -54,8 +56,8 @@ notesRouter.post("/", async (c) => {
         500,
         "An unexpected error occurred. Please try again later.",
         null,
-        null
-      )
+        null,
+      ),
     );
   }
 });

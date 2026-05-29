@@ -1,15 +1,17 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { notesdb } from "../../db/cnotes";
+import { createNotesDb } from "../../db/cnotes";
 import { noteSchema } from "../../zodSchema";
 import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
 import { userExistsInNotesDb } from "../../utils/userExistsInNoteDb";
 import { returnJson } from "../../utils/returnJson";
 import { generateSlug } from "../../utils/generateSlug";
+import { Bindings } from "../../types";
 
-const newNoteRouter = new Hono();
+const newNoteRouter = new Hono<{ Bindings: Bindings }>();
 
 newNoteRouter.post("/:type", async (c) => {
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const type = await c.req.param("type");
   if (!type) {
     console.error("Type not provided");
@@ -33,11 +35,11 @@ newNoteRouter.post("/:type", async (c) => {
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
-  const [success, error] = await userExistsInNotesDb(email);
+  const [success, error] = await userExistsInNotesDb(notesdb, email);
   if (error || !success) {
     console.error(error);
     return c.json(
-      returnJson(401, "Unauthorized: Email does not exist.", null, error)
+      returnJson(401, "Unauthorized: Email does not exist.", null, error),
     );
   }
 
@@ -56,7 +58,7 @@ newNoteRouter.post("/:type", async (c) => {
     console.error("Missing required fields in note data");
     c.status(400);
     return c.json(
-      returnJson(400, "Missing required fields in note data", null, null)
+      returnJson(400, "Missing required fields in note data", null, null),
     );
   }
 
@@ -115,7 +117,7 @@ newNoteRouter.post("/:type", async (c) => {
       .returning({ insertedId: notes.noteId });
 
     return c.json(
-      returnJson(200, "New note created successfully", newNoteQuery[0], null)
+      returnJson(200, "New note created successfully", newNoteQuery[0], null),
     );
   } catch (error) {
     console.error(error);
@@ -125,8 +127,8 @@ newNoteRouter.post("/:type", async (c) => {
         500,
         "An unexpected error occurred. Please try again later.",
         null,
-        null
-      )
+        null,
+      ),
     );
   }
 });

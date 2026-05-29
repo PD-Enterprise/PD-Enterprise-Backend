@@ -1,9 +1,9 @@
 import { Context, Hono } from "hono";
 import { eq } from "drizzle-orm";
 import validator from "validator";
-import { notesdb } from "../../db/cnotes";
+import { createNotesDb } from "../../db/cnotes";
 import { user as noteUser } from "../../../drizzle/cnotes/schema";
-import { db } from "../../db/users";
+import { createUsersDb } from "../../db/users";
 import { users } from "../../../drizzle/users/schema";
 import { userExistsInMainDb } from "../../utils/userExistsInMainDb";
 import { returnJson } from "../../utils/returnJson";
@@ -14,6 +14,7 @@ import { Bindings } from "../../types";
 const usersRouter = new Hono<{ Bindings: Bindings }>();
 
 usersRouter.post("/roles/get-role", async (c) => {
+  const db = createUsersDb(c.env.DATABASE_URL);
   const body = await c.req.json();
   const email = body.email;
 
@@ -22,7 +23,7 @@ usersRouter.post("/roles/get-role", async (c) => {
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
-  const [success, error] = await userExistsInMainDb(email);
+  const [success, error] = await userExistsInMainDb(db, email);
   if (error || !success) {
     return c.json(
       returnJson(401, "Unauthorized: Email does not exist.", null, null),
@@ -34,14 +35,12 @@ usersRouter.post("/roles/get-role", async (c) => {
       .select({ role: users.membership })
       .from(users)
       .where(eq(users.email, email));
-
     if (role[0].role == null || undefined || "") {
       try {
         const role = await db
           .update(users)
           .set({ membership: "tier-1" })
           .where(eq(users.email, email));
-
         return c.json(
           returnJson(200, "Role updated successfully", "tier-1", null),
         );
@@ -76,6 +75,8 @@ usersRouter.post("/roles/get-role", async (c) => {
   }
 });
 usersRouter.post("/new-user", async (c: Context) => {
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
+  const db = createUsersDb(c.env.DATABASE_URL);
   const convexClient = new ConvexClient(c.env.CONVEX_URL);
 
   const body = await c.req.json();

@@ -1,9 +1,8 @@
 import { eq } from "drizzle-orm";
-import { db } from "../db/users";
 import { users } from "../../drizzle/users/schema";
 import { functionReturn } from "./functionReturn";
 
-export async function userExistsInMainDb(email: string) {
+export async function userExistsInMainDb(db: any, email: string) {
   if (!email) {
     return functionReturn(false, true, "Email was not provided.");
   }
@@ -26,7 +25,7 @@ export async function userExistsInMainDb(email: string) {
     return functionReturn(
       false,
       true,
-      "There was an error getting user from database."
+      "There was an error getting user from database.",
     );
   }
 }

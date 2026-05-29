@@ -1,15 +1,14 @@
 import { eq } from "drizzle-orm";
-import { notesdb } from "../db/cnotes";
 import { user as noteUser } from "../../drizzle/cnotes/schema";
 import { functionReturn } from "./functionReturn";
 
-export async function userExistsInNotesDb(email: string) {
+export async function userExistsInNotesDb(db: any, email: string) {
   if (!email) {
     return functionReturn(false, true, "Email was not provided.");
   }
 
   try {
-    const userIdList = await notesdb
+    const userIdList = await db
       .select({ id: noteUser.id })
       .from(noteUser)
       .where(eq(noteUser.email, email))
@@ -26,7 +25,7 @@ export async function userExistsInNotesDb(email: string) {
     return functionReturn(
       false,
       true,
-      "There was an error getting user from database."
+      "There was an error getting user from database.",
     );
   }
 }

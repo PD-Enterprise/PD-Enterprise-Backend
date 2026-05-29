@@ -1,15 +1,17 @@
 import { Hono } from "hono";
 import { eq, and, is } from "drizzle-orm";
-import { notesdb } from "../../db/cnotes";
+import { createNotesDb } from "../../db/cnotes";
 import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
 import { userExistsInNotesDb } from "../../utils/userExistsInNoteDb";
 import { returnJson } from "../../utils/returnJson";
 import { noteSchema } from "../../zodSchema";
 import { generateSlug } from "../../utils/generateSlug";
+import { Bindings } from "../../types";
 
-const noteRouter = new Hono();
+const noteRouter = new Hono<{ Bindings: Bindings }>();
 
 noteRouter.post("/:slug", async (c) => {
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const slug = await c.req.param("slug");
   if (!slug) {
     c.status(400);
@@ -73,7 +75,7 @@ noteRouter.post("/:slug", async (c) => {
       if (!isAuthenticated) {
         c.status(401);
         return c.json(
-          returnJson(401, "Unauthorized: Not authenticated.", null, null)
+          returnJson(401, "Unauthorized: Not authenticated.", null, null),
         );
       }
       if (!isOwner) {
@@ -83,8 +85,8 @@ noteRouter.post("/:slug", async (c) => {
             403,
             "You do not have permission to view this private note.",
             null,
-            null
-          )
+            null,
+          ),
         );
       }
 
@@ -98,13 +100,14 @@ noteRouter.post("/:slug", async (c) => {
         500,
         "An unexpected error occurred. Please try again later.",
         null,
-        null
-      )
+        null,
+      ),
     );
   }
 });
 
 noteRouter.post("/:slug/update", async (c) => {
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const slug = c.req.param("slug");
 
   const body = await c.req.json();
@@ -122,10 +125,10 @@ noteRouter.post("/:slug/update", async (c) => {
     return c.json(returnJson(400, "Missing email or note data", null, null));
   }
 
-  const [success, error] = await userExistsInNotesDb(email);
+  const [success, error] = await userExistsInNotesDb(notesdb, email);
   if (error || !success) {
     return c.json(
-      returnJson(401, "Unauthorized: Email does not exist.", null, null)
+      returnJson(401, "Unauthorized: Email does not exist.", null, null),
     );
   }
 
@@ -143,7 +146,7 @@ noteRouter.post("/:slug/update", async (c) => {
   ) {
     c.status(400);
     return c.json(
-      returnJson(400, "Missing required fields in note data", null, null)
+      returnJson(400, "Missing required fields in note data", null, null),
     );
   }
 
@@ -212,13 +215,13 @@ noteRouter.post("/:slug/update", async (c) => {
           404,
           "Note not found or user not authorized to update.",
           null,
-          null
-        )
+          null,
+        ),
       );
     }
 
     return c.json(
-      returnJson(200, "Note updated successfully", updatedNote[0], null)
+      returnJson(200, "Note updated successfully", updatedNote[0], null),
     );
   } catch (error) {
     console.error(error);
@@ -228,13 +231,14 @@ noteRouter.post("/:slug/update", async (c) => {
         500,
         "An unexpected error occurred. Please try again later.",
         null,
-        null
-      )
+        null,
+      ),
     );
   }
 });
 
 noteRouter.delete("/:slug/delete", async (c) => {
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const slug = c.req.param("slug");
   const body = await c.req.json();
   const email = body.email;
@@ -243,10 +247,10 @@ noteRouter.delete("/:slug/delete", async (c) => {
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
-  const [success, error] = await userExistsInNotesDb(email);
+  const [success, error] = await userExistsInNotesDb(notesdb, email);
   if (error || !success) {
     return c.json(
-      returnJson(401, "Unauthorized: Email does not exist.", null, null)
+      returnJson(401, "Unauthorized: Email does not exist.", null, null),
     );
   }
 
@@ -274,13 +278,13 @@ noteRouter.delete("/:slug/delete", async (c) => {
           404,
           "Note not found or user not authorized to delete.",
           null,
-          null
-        )
+          null,
+        ),
       );
     }
 
     return c.json(
-      returnJson(200, "Note deleted successfully", deletedNote, null)
+      returnJson(200, "Note deleted successfully", deletedNote, null),
     );
   } catch (error) {
     console.error(error);
@@ -290,8 +294,8 @@ noteRouter.delete("/:slug/delete", async (c) => {
         500,
         "An unexpected error occurred. Please try again later.",
         null,
-        null
-      )
+        null,
+      ),
     );
   }
 });
