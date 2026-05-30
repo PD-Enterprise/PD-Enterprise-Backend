@@ -16,6 +16,9 @@ export function createAuth(env: Bindings) {
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
+    },
+    advanced: {
+      useSecureCookies: true,
     }
   });
 }

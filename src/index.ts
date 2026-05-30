@@ -63,7 +63,8 @@ app.route("/grade-ai", aiRouter);
 app.route("/cnotes", notesRouter);
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const auth = createAuth(c.env);
-  return await auth.handler(c.req.raw)
+  const res = await auth.handler(c.req.raw)
+  return res
 })
 
 export default app;
