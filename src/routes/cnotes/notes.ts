@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { createNotesDb } from "../../db/cnotes";
 import { notes, academicLevel, user } from "@/drizzle/cnotes/schema";
-import { userExistsInNotesDb } from "../../db/cnotes/utils/userExistsInNoteDb";
+import { userExistsInNotesDB } from "@/src/routes/user-management/utils/userExists";
 import { returnJson } from "@/utils/returnJson";
 import { Bindings } from "../../types";
 
@@ -18,9 +18,10 @@ notesRouter.post("/", async (c) => {
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
-  const [success, error] = await userExistsInNotesDb(notesdb, email);
-  if (error || !success) {
-    console.error(error);
+  const userId = await userExistsInNotesDB(notesdb, email);
+  if (!userId || userId instanceof Error) {
+    console.error(userId);
+    c.status(401);
     return c.json(
       returnJson(401, "Unauthorized: Email does not exist.", null, null),
     );

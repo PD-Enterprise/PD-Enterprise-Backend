@@ -1,34 +1,53 @@
 import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
-import { createNotesDb } from "../../db/cnotes";
-import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
-import { userExistsInNotesDb } from "../../db/cnotes/utils/userExistsInNoteDb";
-import { returnJson } from "../../utils/returnJson";
+import { createNotesDb } from "@/db/cnotes";
+import { notes, academicLevel, user } from "@/drizzle/cnotes/schema";
+import { userExistsInNotesDB } from "@/src/routes/user-management/utils/userExists";
+import { returnJson } from "@/utils/returnJson";
 import { noteSchema } from "../../zodSchema";
-import { generateSlug } from "../../utils/generateSlug";
+import { generateSlug } from "@/utils/generateSlug";
 import { Bindings } from "../../types";
+import validator from "validator";
 
 const noteRouter = new Hono<{ Bindings: Bindings }>();
 
-noteRouter.post("/:slug", async (c) => {
-  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
-  const slug = await c.req.param("slug");
+/**
+ * POST /cnotes/note/:slug
+ * Requires: email, note
+ * Returns: JSON
+ */
+noteRouter.get("/:slug", async (c) => {
+  const slug = c.req.param("slug");
   if (!slug) {
     c.status(400);
     return c.json(returnJson(400, "Missing slug", null, null));
   }
 
   const body = await c.req.json();
-  let isAuthenticated: boolean;
   const email = body.email;
-  if (email == "null") {
-    isAuthenticated = false;
-  } else {
-    isAuthenticated = true;
+  if (!email) {
+    c.status(400);
+    return c.json(returnJson(400, "Missing required fields", null, null));
+  }
+  if (!validator.isEmail(email)) {
+    console.log("Invalid email format");
+    c.status(400);
+    return c.json(returnJson(400, "Invalid email format", null, null));
+  }
+
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
+
+  const userId = await userExistsInNotesDB(notesdb, email);
+  if (!userId || userId instanceof Error) {
+    console.error(userId);
+    c.status(401);
+    return c.json(
+      returnJson(401, "Unauthorized: Email does not exist.", null, null),
+    );
   }
 
   try {
-    const noteObject = await notesdb
+    const note = await notesdb
       .select({
         title: notes.title,
         slug: notes.slug,
@@ -46,52 +65,27 @@ noteRouter.post("/:slug", async (c) => {
       })
       .from(notes)
       .innerJoin(academicLevel, eq(notes.academicLevel, academicLevel.id))
-      .where(eq(notes.slug, slug));
+      .where(eq(notes.slug, slug))
+      .limit(1);
 
-    if (!noteObject || noteObject.length === 0) {
+    if (!note) {
       c.status(404);
       return c.json(returnJson(404, "Note not found.", null, null));
     }
 
-    const note = noteObject[0];
-    let isOwner: boolean = false;
-
-    if (isAuthenticated) {
-      const userObject = await notesdb
-        .select({ id: user.id })
-        .from(user)
-        .where(eq(user.email, email))
-        .limit(1);
-
-      if (userObject.length === 0) {
-      }
-      const userId = userObject[0].id;
-      isOwner = note.email === userId;
+    if (note[0].visibility === "private" && note[0].email !== userId) {
+      c.status(403);
+      return c.json(
+        returnJson(
+          403,
+          "You do not have permission to view this private note.",
+          null,
+          null,
+        ),
+      );
     }
 
-    if (note.visibility === "public") {
-      return c.json(returnJson(200, "Successfully found note", note, null));
-    } else if (note.visibility === "private") {
-      if (!isAuthenticated) {
-        c.status(401);
-        return c.json(
-          returnJson(401, "Unauthorized: Not authenticated.", null, null),
-        );
-      }
-      if (!isOwner) {
-        c.status(403);
-        return c.json(
-          returnJson(
-            403,
-            "You do not have permission to view this private note.",
-            null,
-            null,
-          ),
-        );
-      }
-
-      return c.json(returnJson(200, "Successfully found note", note, null));
-    }
+    return c.json(returnJson(200, "Successfully found note", note, null));
   } catch (error) {
     console.error(error);
     c.status(500);
@@ -105,7 +99,11 @@ noteRouter.post("/:slug", async (c) => {
     );
   }
 });
-
+/**
+ * POST /cnotes/note/:slug/update
+ * Requires: email, note
+ * Returns: JSON
+ */
 noteRouter.post("/:slug/update", async (c) => {
   const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const slug = c.req.param("slug");
@@ -125,7 +123,7 @@ noteRouter.post("/:slug/update", async (c) => {
     return c.json(returnJson(400, "Missing email or note data", null, null));
   }
 
-  const userId = await userExistsInNotesDb(notesdb, email);
+  const userId = await userExistsInNotesDB(notesdb, email);
   if (!userId || userId instanceof Error) {
     console.error(userId);
     c.status(401);
@@ -220,7 +218,11 @@ noteRouter.post("/:slug/update", async (c) => {
     );
   }
 });
-
+/**
+ * DELETE /cnotes/note/:slug/delete
+ * Requires: email
+ * Returns: JSON
+ */
 noteRouter.delete("/:slug/delete", async (c) => {
   const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const slug = c.req.param("slug");
@@ -231,8 +233,10 @@ noteRouter.delete("/:slug/delete", async (c) => {
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
 
-  const [success, error] = await userExistsInNotesDb(notesdb, email);
-  if (error || !success) {
+  const userId = await userExistsInNotesDB(notesdb, email);
+  if (!userId || userId instanceof Error) {
+    console.error(userId);
+    c.status(401);
     return c.json(
       returnJson(401, "Unauthorized: Email does not exist.", null, null),
     );
