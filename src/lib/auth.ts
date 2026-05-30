@@ -18,10 +18,11 @@ export function createAuth(env: Bindings) {
       updateAge: 60 * 60 * 24,
     },
     advanced: {
-      useSecureCookies: true,
+      useSecureCookies: false,
       defaultCookieAttributes: {
         sameSite: "none",
         secure: true,
+        partitioned: true,
       },
       ipAddress: {
         ipAddressHeaders: ["cf-connecting-ip"],
