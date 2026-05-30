@@ -19,6 +19,12 @@ export function createAuth(env: Bindings) {
     },
     advanced: {
       useSecureCookies: true,
+      defaultCookieAttributes: {
+        sameSite: "none",
+      },
+      ipAddress: {
+        ipAddressHeaders: ["cf-connecting-ip"],
+      },
     }
   });
 }
