@@ -14,11 +14,12 @@ import { addNewUserToNotesDB } from "./utils/addNewUser";
 const usersRouter = new Hono<{ Bindings: Bindings }>();
 
 /**
- * POST /users/roles/get-role
+ * Get user role
+ * GET /users/roles/get-role
  * Requires: email
  * Returns: JSON
  */
-usersRouter.post("/roles/get-role", async (c) => {
+usersRouter.get("/roles/get-role", async (c) => {
   const body = await c.req.json();
   const email = body.email;
 
@@ -74,6 +75,7 @@ usersRouter.post("/roles/get-role", async (c) => {
   }
 });
 /**
+ * Create new user
  * POST /users/roles/new-user
  * Requires: email: string, name: string, avatarUrl: string
  * Returns: JSON
