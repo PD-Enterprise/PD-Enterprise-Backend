@@ -5,11 +5,17 @@ import { notes, academicLevel, user } from "@/drizzle/cnotes/schema";
 import { userExistsInNotesDB } from "@/src/routes/user-management/utils/userExists";
 import { returnJson } from "@/utils/returnJson";
 import { Bindings } from "../../types";
+import validator from "validator";
 
 const notesRouter = new Hono<{ Bindings: Bindings }>();
 
+/**
+ * Get notes
+ * POST /cnotes/notes
+ * Requires: email
+ * Returns: JSON
+ */
 notesRouter.post("/", async (c) => {
-  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const body = await c.req.json();
   const email = body.email;
   if (!email) {
@@ -17,7 +23,13 @@ notesRouter.post("/", async (c) => {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
+  if (!validator.isEmail(email)) {
+    console.log("Invalid email format");
+    c.status(400);
+    return c.json(returnJson(400, "Invalid email format", null, null));
+  }
 
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const userId = await userExistsInNotesDB(notesdb, email);
   if (!userId || userId instanceof Error) {
     console.error(userId);
@@ -47,6 +59,11 @@ notesRouter.post("/", async (c) => {
       .innerJoin(academicLevel, eq(notes.academicLevel, academicLevel.id))
       .innerJoin(user, eq(notes.email, user.id))
       .where(eq(user.email, email));
+
+    if (!notesList) {
+      c.status(404);
+      return c.json(returnJson(404, "Notes could not be loaded.", null, null));
+    }
 
     return c.json(returnJson(200, "Notes found successfully", notesList, null));
   } catch (error) {
