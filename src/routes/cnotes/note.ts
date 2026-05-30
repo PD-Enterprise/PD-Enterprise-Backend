@@ -189,7 +189,6 @@ noteRouter.post("/:slug/update", async (c) => {
  * Returns: JSON
  */
 noteRouter.delete("/:slug/delete", async (c) => {
-  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const slug = c.req.param("slug");
   const body = await c.req.json();
   const email = body.email;
@@ -197,6 +196,13 @@ noteRouter.delete("/:slug/delete", async (c) => {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
+  if (!validator.isEmail(email)) {
+    console.log("Invalid email format");
+    c.status(400);
+    return c.json(returnJson(400, "Invalid email format", null, null));
+  }
+
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
 
   const userId = await userExistsInNotesDB(notesdb, email);
   if (!userId || userId instanceof Error) {
@@ -208,28 +214,17 @@ noteRouter.delete("/:slug/delete", async (c) => {
   }
 
   try {
-    const userObject = await notesdb
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.email, email))
-      .limit(1);
-    if (userObject.length === 0) {
-      c.status(404);
-      return c.json(returnJson(404, "User not found.", null, null));
-    }
-    const userId = userObject[0].id;
-
-    const deletedNote = await notesdb
+    const deleted = await notesdb
       .delete(notes)
       .where(and(eq(notes.slug, slug), eq(notes.email, userId)))
       .returning({ id: notes.noteId });
 
-    if (deletedNote.length === 0) {
+    if (!deleted) {
       c.status(404);
       return c.json(
         returnJson(
           404,
-          "Note not found or user not authorized to delete.",
+          "Note not found to be deleted.",
           null,
           null,
         ),
@@ -237,7 +232,7 @@ noteRouter.delete("/:slug/delete", async (c) => {
     }
 
     return c.json(
-      returnJson(200, "Note deleted successfully", deletedNote, null),
+      returnJson(200, "Note deleted successfully", deleted, null),
     );
   } catch (error) {
     console.error(error);
