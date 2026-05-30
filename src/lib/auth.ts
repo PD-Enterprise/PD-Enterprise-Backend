@@ -17,15 +17,5 @@ export function createAuth(env: Bindings) {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
     },
-    advanced: {
-      useSecureCookies: false,
-      defaultCookieAttributes: {
-        sameSite: "none",
-        secure: true,
-      },
-      ipAddress: {
-        ipAddressHeaders: ["cf-connecting-ip"],
-      },
-    }
   });
 }
