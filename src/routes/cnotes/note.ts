@@ -8,6 +8,7 @@ import { noteSchema } from "../../zodSchema";
 import { generateSlug } from "@/utils/generateSlug";
 import { Bindings } from "../../types";
 import validator from "validator";
+import { existingAcademicLevel } from "@/src/db/cnotes/utils/existingAcademicLevel";
 
 const noteRouter = new Hono<{ Bindings: Bindings }>();
 
@@ -18,10 +19,6 @@ const noteRouter = new Hono<{ Bindings: Bindings }>();
  */
 noteRouter.get("/:slug", async (c) => {
   const slug = c.req.param("slug");
-  if (!slug) {
-    c.status(400);
-    return c.json(returnJson(400, "Missing slug", null, null));
-  }
 
   const body = await c.req.json();
   const email = body.email;
@@ -105,7 +102,6 @@ noteRouter.get("/:slug", async (c) => {
  * Returns: JSON
  */
 noteRouter.post("/:slug/update", async (c) => {
-  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const slug = c.req.param("slug");
 
   const body = await c.req.json();
@@ -115,13 +111,12 @@ noteRouter.post("/:slug/update", async (c) => {
     c.status(400);
     return c.json(returnJson(400, "Invalid input", null, result.error));
   }
-  const sanitized = result.data;
-  const email = sanitized.email;
-  const note = sanitized.note;
+  const { email, note } = result.data
   if (!email || !note) {
     c.status(400);
     return c.json(returnJson(400, "Missing email or note data", null, null));
   }
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
 
   const userId = await userExistsInNotesDB(notesdb, email);
   if (!userId || userId instanceof Error) {
@@ -132,51 +127,21 @@ noteRouter.post("/:slug/update", async (c) => {
     );
   }
 
-  let academicLevelId;
-  let newSlug: string = note.slug;
+  const academicLevelId = await existingAcademicLevel(notesdb, note.academicLevel);
+  if (!academicLevelId || academicLevelId instanceof Error) {
+    console.error(academicLevelId);
+    c.status(400)
+    return c.json(
+      returnJson(400, "Invalid academic Level", null, null),
+    );
+  }
 
   try {
-    const userObject = await notesdb
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.email, email))
-      .limit(1);
-    if (userObject.length === 0) {
-      c.status(404);
-      return c.json(returnJson(404, "User not found", null, null));
-    }
-    const userId = userObject[0].id;
-
-    const oldTitle = await notesdb
-      .select({ title: notes.title })
-      .from(notes)
-      .where(eq(notes.slug, slug))
-      .limit(1);
-
-    if (oldTitle[0].title !== note.title) {
-      newSlug = generateSlug(note.title);
-    }
-
-    const existingacademicLevel = await notesdb
-      .select({ id: academicLevel.id })
-      .from(academicLevel)
-      .where(eq(academicLevel.academicLevel, note.academicLevel))
-      .limit(1);
-    if (existingacademicLevel.length > 0) {
-      academicLevelId = existingacademicLevel[0].id;
-    } else {
-      const newAcademicLevel = await notesdb
-        .insert(academicLevel)
-        .values({ academicLevel: note.academicLevel })
-        .returning({ id: academicLevel.id });
-      academicLevelId = newAcademicLevel[0].id;
-    }
-
-    const updatedNote = await notesdb
+    const updated = await notesdb
       .update(notes)
       .set({
         title: note.title,
-        slug: newSlug,
+        slug: generateSlug(note.title),
         content: note.content,
         dateCreated: note.dateCreated,
         dateUpdated: new Date().toISOString(),
@@ -190,12 +155,12 @@ noteRouter.post("/:slug/update", async (c) => {
       .where(and(eq(notes.slug, slug), eq(notes.email, userId)))
       .returning();
 
-    if (updatedNote.length === 0) {
+    if (!updated) {
       c.status(404);
       return c.json(
         returnJson(
           404,
-          "Note not found or user not authorized to update.",
+          "Note could not be update.",
           null,
           null,
         ),
@@ -203,7 +168,7 @@ noteRouter.post("/:slug/update", async (c) => {
     }
 
     return c.json(
-      returnJson(200, "Note updated successfully", updatedNote[0], null),
+      returnJson(200, "Note updated successfully", updated[0], null),
     );
   } catch (error) {
     console.error(error);
