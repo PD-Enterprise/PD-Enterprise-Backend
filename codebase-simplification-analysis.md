@@ -65,27 +65,7 @@ Schema definitions live in `drizzle/<name>/schema.ts` (introspected from DB), wh
 
 ---
 
-## 2. Security & Secrets
-
-### 2.1 Database credentials hardcoded in source code
-
-**Files:** `src/db/users/index.ts`, `src/db/cnotes/index.ts`
-
-```typescript
-export const db = drizzle("postgresql://neondb_owner:6HBpU3GFrvwN@...");
-```
-
-Plaintext DB passwords committed to source. These should be read from `c.env.DATABASE_URL` / `c.env.CNOTES_DB_URL` at runtime. The values already exist in `.dev.vars` but are ignored by the source.
-
-### 2.2 `.dev.vars` not in `.gitignore`
-
-**File:** `.gitignore`
-
-Only `*.local` and `*.production` are gitignored, but `.dev.vars` itself is not. This means all credentials (DB URLs, API keys, Convex deployment tokens) in `.dev.vars` are tracked by git and could be accidentally committed.
-
-Additionally, the bare `.env` filename is also not listed in `.gitignore`, so a developer could accidentally commit a `.env` file.
-
-### 2.3 Raw error objects returned to client
+## 2. Raw error objects returned to client
 
 Throughout the codebase:
 
@@ -95,7 +75,7 @@ return c.json(returnJson(500, "...", null, err));
 
 The raw `err` (or `error`) object is sent to the client in the `error` field of the response. This can leak stack traces, internal paths, and database error details.
 
-### 2.4 CORS null-origin edge case
+### 2.2 CORS null-origin edge case
 
 **File:** `src/index.ts` lines 32-42
 
@@ -107,11 +87,11 @@ The `origin` callback in Hono's CORS middleware returns `null` when the origin i
 
 ### 3.1 Three user-existence check utilities
 
-| File | DB checked | Return type | Status |
-|------|-----------|-------------|--------|
-| `src/utils/checkUserExits.ts` | Users DB | `boolean` | **Unused, has typo in name** |
-| `src/utils/userExistsInMainDb.ts` | Users DB | `[boolean, boolean, string]` | Used |
-| `src/utils/userExistsInNoteDb.ts` | CNotes DB | `[boolean, boolean, string]` | Used |
+| File                              | DB checked | Return type                  | Status                       |
+| --------------------------------- | ---------- | ---------------------------- | ---------------------------- |
+| `src/utils/checkUserExits.ts`     | Users DB   | `boolean`                    | **Unused, has typo in name** |
+| `src/utils/userExistsInMainDb.ts` | Users DB   | `[boolean, boolean, string]` | Used                         |
+| `src/utils/userExistsInNoteDb.ts` | CNotes DB  | `[boolean, boolean, string]` | Used                         |
 
 `checkUserExits.ts` is completely dead code (never imported anywhere). The other two are near-identical — same try/catch, same `functionReturn` pattern. Consider a single generic `userExists(db, table, email)` utility.
 
@@ -304,14 +284,14 @@ The catch block just re-throws. Either remove the try-catch or handle the error 
 
 Most data-fetching routes use `POST` instead of `GET`:
 
-| Endpoint | Method | Should be |
-|----------|--------|-----------|
-| `/cnotes/notes` | POST | GET |
-| `/cnotes/note/:slug` | POST | GET |
-| `/cnotes/note/:slug/update` | POST | PATCH or PUT |
-| `/cnotes/note/:slug/delete` | DELETE | DELETE (correct) |
-| `/users/roles/get-role` | POST | GET |
-| `/grade-ai/get-user-academic-level` | POST | GET |
+| Endpoint                            | Method | Should be        |
+| ----------------------------------- | ------ | ---------------- |
+| `/cnotes/notes`                     | POST   | GET              |
+| `/cnotes/note/:slug`                | POST   | GET              |
+| `/cnotes/note/:slug/update`         | POST   | PATCH or PUT     |
+| `/cnotes/note/:slug/delete`         | DELETE | DELETE (correct) |
+| `/users/roles/get-role`             | POST   | GET              |
+| `/grade-ai/get-user-academic-level` | POST   | GET              |
 
 Using POST for everything makes caching impossible and violates REST conventions. If the reason is "we need a body", consider query parameters or proper GET-with-body patterns.
 
@@ -409,17 +389,6 @@ This column is never read or written by any code in the project.
 
 The `notes` table has foreign keys to `user` and `academic_level`, but no `onDelete: cascade`. Deleting a user from the `user` table would orphan their notes.
 
-### 7.4 `drizzle/users/relations.ts` is empty
-
-**File:** `drizzle/users/relations.ts`
-
-```typescript
-import { relations } from "drizzle-orm/relations";
-import {} from "./schema";
-```
-
-The import is empty, and there are no relation definitions. Dead file.
-
 ---
 
 ## 8. AI Providers & Streaming
@@ -443,23 +412,6 @@ The `20` character threshold is arbitrary and undocumented. This creates a chopp
 
 `GroqProvider` checks for a missing API key in its constructor and throws early. `GeminiProvider` does **not** — it will fail with an opaque error only at stream time, making debugging harder.
 
-### 8.3 Usage chunk ordering differs between providers
-
-**File:** `groq-provider.ts` lines 39-49 vs `gemini-provider.ts` lines 63-70
-
-When `x_groq.usage` is present (on the final chunk), Groq emits usage data mid-stream before the final buffer flush. Gemini correctly emits usage after the buffer flush. The client must handle both orderings, increasing complexity.
-
-### 8.4 Two Google AI SDKs installed
-
-**Package.json:**
-
-```json
-"@google/genai": "^1.50.1",
-"@google/generative-ai": "^0.24.1",
-```
-
-Both `@google/genai` (newer SDK) and `@google/generative-ai` (older SDK) are installed. Only `@google/genai` is used in `gemini-provider.ts`. The older one is dead weight.
-
 ### 8.5 OpenAI SDK installed but unused
 
 **Package.json:** `"openai": "^6.34.0"`
@@ -472,15 +424,15 @@ The OpenAI SDK is installed but no OpenAI provider is implemented. This is eithe
 
 ### 9.1 Unused dependencies
 
-| Package | Reason unused |
-|---------|--------------|
+| Package                 | Reason unused                                     |
+| ----------------------- | ------------------------------------------------- |
 | `@google/generative-ai` | Older Gemini SDK; `@google/genai` is used instead |
-| `openai` | No OpenAI provider implemented |
-| `dotenv` | Cloudflare Workers use `.dev.vars`, not `dotenv` |
-| `uuid` | Only used by dead code `newCookie.ts` |
-| `cookie` | Only used by dead code `newCookie.ts` |
-| `string-hash` | Not imported anywhere in source code |
-| `convex-helpers` | Not imported anywhere in source code |
+| `openai`                | No OpenAI provider implemented                    |
+| `dotenv`                | Cloudflare Workers use `.dev.vars`, not `dotenv`  |
+| `uuid`                  | Only used by dead code `newCookie.ts`             |
+| `cookie`                | Only used by dead code `newCookie.ts`             |
+| `string-hash`           | Not imported anywhere in source code              |
+| `convex-helpers`        | Not imported anywhere in source code              |
 
 ### 9.2 `@types/node` in wrong dependency group
 
@@ -492,93 +444,23 @@ The `tsconfig.json` should be checked for `strict: true`, `noUnusedLocals`, and 
 
 ---
 
-## 10. Configuration & Environment
+## 10. Documentation
 
-### 10.1 Environment variables not wired to Cloudflare Workers bindings
-
-**File:** `wrangler.toml`
-
-The `.dev.vars` file contains `DATABASE_URL`, `CNOTES_DB_URL`, `CONVEX_URL`, `GROQ_API_KEY`, `GEMINI_API_KEY`, but `wrangler.toml` has **no `[vars]` section** and no bindings. These environment variables are not actually injected into the worker at deploy time.
-
-For production, you need either:
-
-```toml
-[vars]
-CONVEX_URL = "https://..."
-GROQ_API_KEY = "..."
-```
-
-or Cloudflare Workers secrets (`wrangler secret put ...`).
-
-### 10.2 Database URLs hardcoded, ignoring env vars
-
-**Files:** `src/db/users/index.ts`, `src/db/cnotes/index.ts`
-
-The DB connection URLs are hardcoded strings. The env vars `DATABASE_URL` and `CNOTES_DB_URL` exist in `.dev.vars` but are never read at runtime. The source files need to read from `c.env.DATABASE_URL` / `c.env.CNOTES_DB_URL` instead.
-
-### 10.3 No request ID or correlation ID
-
-There's no request tracing mechanism. When errors occur in production (especially in streaming), correlating log output to specific requests is difficult.
-
-### 10.4 Missing `.env` from `.gitignore`
-
-Only `*.local` and `*.production` patterns are in `.gitignore`. The bare `.env` filename is not listed, so a developer could accidentally commit a `.env` file containing secrets.
-
----
-
-## 11. Documentation
-
-### 11.1 README is significantly outdated
-
-- Documents `/notes/` routes but actual paths are `/cnotes/`
-- Documents `/ai/chat/:modal` but actual route is `/grade-ai/chat`
-- Documents old schema with `apikeys`, `grade`, `subjects` tables that no longer exist
-- References `wrangler.json` (doesn't exist) instead of `wrangler.toml`
-- Missing documentation for Convex integration
-- Missing documentation for Gemini AI provider
-- Missing the `convex/` directory and schema in the project structure
-- No mention of the NDJSON streaming format used by the chat endpoint
-- No mention of rate limit tiers (15/min for chat, 20/min for notes, 60/min default)
-
-### 11.2 No inline comments on complex logic
+### 10.1 No inline comments on complex logic
 
 The streaming buffer strategy in the providers, the NDJSON format, and the Socratic/Direct mode logic are undocumented. A future developer would need to read the entire implementation to understand the data flow.
 
 ---
 
-## 12. Small / Nitpick Issues
+## 11. Small / Nitpick Issues
 
-### 12.1 `console.log` left in production code
+### 11.1 `console.log` left in production code
 
 - `src/routes/grade-ai/routes/prompts/system-prompts.ts` line 43: `console.log(academicLevel)`
 - `src/routes/user-management/index.ts` line 92: `console.log("Invalid email format")`
 - `src/routes/grade-ai/routes/chat-handler.ts` line 65: `console.log("Validation failed", ...)`
 
-### 12.2 Typo: "Unkown" in error message
-
-**File:** `src/routes/grade-ai/routes/providers/provider-factory.ts` line 22
-
-```typescript
-throw new Error(`Unkown provider: ${provider}`);
-```
-
-Should be `Unknown`.
-
-### 12.3 Typo: `checkUserExits` (missing 's')
-
-**File:** `src/utils/checkUserExits.ts`
-
-Filename says "Exits" instead of "Exists". (This file is dead code, but still.)
-
-### 12.4 Inconsistent quote style
-
-The codebase mixes single quotes and double quotes inconsistently. For example, `src/db/users/index.ts` uses single quotes while most other files use double quotes.
-
-### 12.5 No Prettier / ESLint configuration
-
-No `.prettierrc`, `.eslintrc`, or `biome.json` found. A formatter would catch the inconsistent quoting, spacing, and formatting issues.
-
-### 12.6 `academicLevel` variable name shadowing in update handler
+### 11.6 `academicLevel` variable name shadowing in update handler
 
 **File:** `src/routes/grade-ai/index.ts` line 94
 
@@ -594,44 +476,27 @@ const academicLevel = await convexClient.mutation(
 
 `academicLevel` is used both as the mutation result variable and as a property name in the argument object. This overloads the name confusingly.
 
-### 12.7 Convex `api` imports use deeply nested relative paths
+### 11.7 Convex `api` imports use deeply nested relative paths
 
 The imports like `../../../../convex/_generated/api` are fragile and could break with directory restructuring. Consider a path alias in `tsconfig.json` (e.g., `@convex/*`).
 
-### 12.8 Unnecessary `await` on synchronous calls
+### 11.8 Unnecessary `await` on synchronous calls
 
 `c.req.param()` returns a string synchronously, but `await` is used in `new-note.ts` and `note.ts`. This compiles fine but is misleading.
 
-### 12.9 Unused `is` import in `note.ts`
-
-**File:** `src/routes/cnotes/note.ts` line 2
-
-```typescript
-import { eq, and, is } from "drizzle-orm";
-```
-
-`is` is never used in the file.
-
----
-
 ## Summary of Quick Wins
 
-| Priority | Issue | Effort |
-|----------|-------|--------|
-| 🔴 Critical | Hardcoded DB credentials in source files | 30 min |
-| 🔴 Critical | Bug: `role[0].role == null \|\| undefined \|\| ""` | 5 min |
-| 🟡 High | Remove dead code: `checkUserExits.ts`, `newCookie.ts`, empty `relations.ts` | 15 min |
-| 🟡 High | Remove unused deps: `openai`, `@google/generative-ai`, `dotenv`, `uuid`, `cookie`, `string-hash`, `convex-helpers` | 10 min |
-| 🟡 High | Add `CONVEX_URL`, `DATABASE_URL`, `CNOTES_DB_URL` to `Bindings` type | 5 min |
-| 🟡 High | Fix `email == "null"` string comparison in `note.ts` | 5 min |
-| 🟡 High | Replace `any` with proper types in `returnJson`, `functionReturn`, `chat-handler` | 2 hr |
-| 🟡 High | Fix rate limiter paths to match actual routes | 10 min |
-| 🟡 Medium | Create middleware for auth checks (eliminate duplication) | 3 hr |
-| 🟡 Medium | Add global error handling/validation using Hono's `onError` | 2 hr |
-| 🟡 Medium | Close ConvexClient after requests / use singleton | 1 hr |
-| 🟡 Medium | Remove manual field validation after Zod parse | 1 hr |
-| 🟡 Medium | Update README to match actual routes | 1 hr |
-| 🟢 Low | Fix typos (`Unkown` → `Unknown`, `checkUserExits` → `checkUserExists`) | 10 min |
-| 🟢 Low | Remove unnecessary `await` on sync `c.req.param()` | 10 min |
-| 🟢 Low | Add `wrangler.toml` `[vars]` section for env bindings | 15 min |
-| 🟢 Low | Remove `console.log` statements | 10 min |
+| Priority    | Issue                                                                                                              | Effort |
+| ----------- | ------------------------------------------------------------------------------------------------------------------ | ------ |
+| 🔴 Critical | Bug: `role[0].role == null \|\| undefined \|\| ""`                                                                 | 5 min  |
+| 🟡 High     | Remove unused deps: `openai`, `@google/generative-ai`, `dotenv`, `uuid`, `cookie`, `string-hash`, `convex-helpers` | 10 min |
+| 🟡 High     | Fix `email == "null"` string comparison in `note.ts`                                                               | 5 min  |
+| 🟡 High     | Replace `any` with proper types in `returnJson`, `functionReturn`, `chat-handler`                                  | 2 hr   |
+| 🟡 High     | Fix rate limiter paths to match actual routes                                                                      | 10 min |
+| 🟡 Medium   | Create middleware for auth checks (eliminate duplication)                                                          | 3 hr   |
+| 🟡 Medium   | Add global error handling/validation using Hono's `onError`                                                        | 2 hr   |
+| 🟡 Medium   | Close ConvexClient after requests / use singleton                                                                  | 1 hr   |
+| 🟡 Medium   | Remove manual field validation after Zod parse                                                                     | 1 hr   |
+| 🟡 Medium   | Update README to match actual routes                                                                               | 1 hr   |
+| 🟢 Low      | Fix typos (`Unkown` → `Unknown`, `checkUserExits` → `checkUserExists`)                                             | 10 min |
+| 🟢 Low      | Remove unnecessary `await` on sync `c.req.param()`                                                                 | 10 min |

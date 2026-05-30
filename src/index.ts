@@ -10,6 +10,7 @@ import pdEnterpriseRouter from "./routes/pd-enterprise";
 import aiRouter from "./routes/grade-ai";
 import notesRouter from "./routes/cnotes";
 import { Bindings } from "./types";
+import { createAuth } from "./lib/auth";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -38,6 +39,7 @@ app.use(
       }
       return null;
     },
+    credentials: true,
   }),
 );
 
@@ -59,5 +61,9 @@ app.route("/users", usersRouter);
 app.route("/pd-enterprise", pdEnterpriseRouter);
 app.route("/grade-ai", aiRouter);
 app.route("/cnotes", notesRouter);
+app.on(["GET", "POST"], "/api/auth/*", (c) => {
+  const auth = createAuth(c.env);
+  return auth.handler(c.req.raw)
+})
 
 export default app;

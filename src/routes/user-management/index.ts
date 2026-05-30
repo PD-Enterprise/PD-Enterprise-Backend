@@ -1,15 +1,16 @@
 import { Context, Hono } from "hono";
 import validator from "validator";
-import { createNotesDb } from "../../db/cnotes";
-import { createUsersDb } from "../../db/users";
-import { userExistsInMainDb } from "../../db/users/utils/userExistsInMainDb";
-import { returnJson } from "../../utils/returnJson";
+import { createNotesDb } from "@/db/cnotes";
+import { createUsersDb } from "@/db/users";
+import { userExistsInMainDb } from "@/db/users/utils/userExistsInMainDb";
+import { returnJson } from "@/utils/returnJson";
 import { api } from "../../../convex/_generated/api";
 import { ConvexClient } from "convex/browser";
 import { Bindings } from "../../types";
 import { getUserRole } from "./utils/getUserRole";
 import { addNewUserToMainDB } from "./utils/addNewUser";
 import { addNewUserToNotesDB } from "./utils/addNewUser";
+import { createAuth } from "../../lib/auth";
 
 const usersRouter = new Hono<{ Bindings: Bindings }>();
 
@@ -42,7 +43,7 @@ usersRouter.post("/roles/get-role", async (c) => {
 
   try {
     const role = await getUserRole(db, email);
-    console.log(role);
+    // console.log(role);
     if (role == "") {
       console.error("Role not found");
       c.status(500);
@@ -138,6 +139,16 @@ usersRouter.post("/new-user", async (c: Context) => {
       ),
     );
   }
+});
+
+usersRouter.post("/test", async (c) => {
+  console.log(c.req.raw.headers)
+  const auth = createAuth(c.env);
+  const session = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+  console.log(session);
+  c.status(200);
 });
 
 export default usersRouter;

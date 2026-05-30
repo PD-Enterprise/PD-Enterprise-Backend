@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, is } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { createNotesDb } from "../../db/cnotes";
 import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
 import { userExistsInNotesDb } from "../../db/cnotes/utils/userExistsInNoteDb";

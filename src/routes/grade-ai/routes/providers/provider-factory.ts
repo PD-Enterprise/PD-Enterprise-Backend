@@ -19,6 +19,6 @@ export function resolveProvider(
     case "gemini":
       return new GeminiProvider(env.GEMINI_API_KEY);
     default:
-      throw new Error(`Unkown provider: ${provider}`);
+      throw new Error(`Unknown provider: ${provider}`);
   }
 }
