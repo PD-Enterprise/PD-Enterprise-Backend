@@ -8,6 +8,10 @@ import { api } from "../../../convex/_generated/api";
 
 const aiRouter = new Hono<{ Bindings: Bindings }>();
 
+aiRouter.get("/", (c) => {
+  c.status(200);
+  return c.html("<!DOCTYPE html><html><body><h1>This is the backend-service for Grade AI.</h1></body></html>");
+});
 /**
  * POST /grade-ai/chat
  *

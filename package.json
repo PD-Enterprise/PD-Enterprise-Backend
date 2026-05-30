@@ -2,8 +2,7 @@
   "name": "pd-enterprise-backend",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy --minify",
-    "lint": "eslint ."
+    "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

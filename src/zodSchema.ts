@@ -4,7 +4,7 @@ export const noteSchema = z.object({
   email: z.string().email().trim().toLowerCase(),
   note: z.object({
     title: z.string().min(1).max(255).trim(),
-    slug: z.string().min(1).max(255).trim().optional(),
+    slug: z.string().min(1).max(255).trim(),
 
     content: z.string().trim(),
 
@@ -15,8 +15,8 @@ export const noteSchema = z.object({
 
     type: z.string().min(1),
     visibility: z.string().max(255).trim(),
-    year: z.number().int().positive().optional(),
-    language: z.string().max(255).trim().optional(),
+    year: z.number().int().positive(),
+    language: z.string().max(255).trim(),
     keywords: z.string().optional(),
   }),
 });

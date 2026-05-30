@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { createNotesDb } from "../../db/cnotes";
-import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
+import { notes, academicLevel, user } from "@/drizzle/cnotes/schema";
 import { userExistsInNotesDb } from "../../db/cnotes/utils/userExistsInNoteDb";
-import { returnJson } from "../../utils/returnJson";
+import { returnJson } from "@/utils/returnJson";
 import { Bindings } from "../../types";
 
 const notesRouter = new Hono<{ Bindings: Bindings }>();

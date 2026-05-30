@@ -125,28 +125,12 @@ noteRouter.post("/:slug/update", async (c) => {
     return c.json(returnJson(400, "Missing email or note data", null, null));
   }
 
-  const [success, error] = await userExistsInNotesDb(notesdb, email);
-  if (error || !success) {
+  const userId = await userExistsInNotesDb(notesdb, email);
+  if (!userId || userId instanceof Error) {
+    console.error(userId);
+    c.status(401);
     return c.json(
       returnJson(401, "Unauthorized: Email does not exist.", null, null),
-    );
-  }
-
-  if (
-    !note.title ||
-    !note.slug ||
-    !note.content ||
-    !note.dateCreated ||
-    !note.academicLevel ||
-    !note.topic ||
-    !note.visibility ||
-    !note.year ||
-    !note.language ||
-    !note.keywords
-  ) {
-    c.status(400);
-    return c.json(
-      returnJson(400, "Missing required fields in note data", null, null),
     );
   }
 

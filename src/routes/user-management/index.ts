@@ -2,7 +2,7 @@ import { Context, Hono } from "hono";
 import validator from "validator";
 import { createNotesDb } from "@/db/cnotes";
 import { createUsersDb } from "@/db/users";
-import { userExistsInMainDb } from "@/db/users/utils/userExistsInMainDb";
+import { userExistsInMainDB } from "./utils/userExists";
 import { returnJson } from "@/utils/returnJson";
 import { api } from "../../../convex/_generated/api";
 import { ConvexClient } from "convex/browser";
@@ -33,8 +33,10 @@ usersRouter.post("/roles/get-role", async (c) => {
   }
   const db = createUsersDb(c.env.DATABASE_URL);
 
-  const [success, error] = await userExistsInMainDb(db, email);
-  if (error || !success) {
+  const userId = await userExistsInMainDB(db, email);
+  if (!userId || userId instanceof Error) {
+    console.error(userId);
+    c.status(401);
     return c.json(
       returnJson(401, "Unauthorized: Email does not exist.", null, null),
     );

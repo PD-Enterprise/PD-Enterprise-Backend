@@ -1,22 +1,26 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
 import { createNotesDb } from "../../db/cnotes";
 import { noteSchema } from "../../zodSchema";
-import { notes, academicLevel, user } from "../../../drizzle/cnotes/schema";
-import { userExistsInNotesDb } from "../../db/cnotes/utils/userExistsInNoteDb";
-import { returnJson } from "../../utils/returnJson";
-import { generateSlug } from "../../utils/generateSlug";
+import { notes, academicLevel } from "@/drizzle/cnotes/schema";
+import { userExistsInNotesDB } from "@/src/routes/user-management/utils/userExists";
+import { returnJson } from "@/utils/returnJson";
+import { generateSlug } from "@/utils/generateSlug";
 import { Bindings } from "../../types";
+import { existingAcademicLevel } from "@/db/cnotes/utils/existingAcademicLevel";
 
 const newNoteRouter = new Hono<{ Bindings: Bindings }>();
 
+/**
+ * POST /cnotes/new-note/:type
+ * Requires: email, note
+ * Returns: JSON
+ */
 newNoteRouter.post("/:type", async (c) => {
-  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
-  const type = await c.req.param("type");
+  const type = c.req.param("type");
   if (!type) {
     console.error("Type not provided");
     c.status(400);
-    return c.json(returnJson(400, "Missing slug", null, null));
+    return c.json(returnJson(400, "Missing type", null, null));
   }
 
   const body = await c.req.json();
@@ -26,98 +30,62 @@ newNoteRouter.post("/:type", async (c) => {
     c.status(400);
     return c.json(returnJson(400, "Invalid input", null, result.error));
   }
-  const sanitized = result.data;
-  const email = sanitized.email;
-  const note = sanitized.note;
+  const { email, note } = result.data;
   if (!email || !note) {
     console.error("Email or note not provided");
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
+  const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
 
-  const [success, error] = await userExistsInNotesDb(notesdb, email);
-  if (error || !success) {
-    console.error(error);
+  const userId = await userExistsInNotesDB(notesdb, email);
+  console.error(userId);
+  if (!userId || userId instanceof Error) {
+    console.error(userId);
+    c.status(401);
     return c.json(
-      returnJson(401, "Unauthorized: Email does not exist.", null, error),
+      returnJson(401, "Unauthorized: Email does not exist.", null, null),
+    );
+  }
+  if (!userId) {
+    console.error("User not found in database");
+    c.status(404);
+    return c.json(
+      returnJson(404, "User not found in database", null, null),
     );
   }
 
-  if (
-    !note.title ||
-    !note.content ||
-    !note.dateCreated ||
-    !note.academicLevel ||
-    !note.topic ||
-    !note.type ||
-    !note.visibility ||
-    !note.year ||
-    !note.language ||
-    !note.keywords
-  ) {
-    console.error("Missing required fields in note data");
-    c.status(400);
+  const academicLevelId = await existingAcademicLevel(notesdb, note.academicLevel);
+  if (!academicLevelId || academicLevelId instanceof Error) {
+    console.error(academicLevelId);
+    c.status(400)
     return c.json(
-      returnJson(400, "Missing required fields in note data", null, null),
+      returnJson(400, "Invalid academic Level", null, null),
     );
   }
-
-  let userId;
-  let academicLevelId;
 
   try {
-    const existingUser = await notesdb
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.email, email))
-      .limit(1);
-    if (existingUser.length > 0) {
-      userId = existingUser[0].id;
-    } else {
-      const newUser = await notesdb
-        .insert(user)
-        .values({ email })
-        .returning({ id: user.id });
-      userId = newUser[0].id;
-    }
-
-    const existingacademicLevel = await notesdb
-      .select({ id: academicLevel.id })
-      .from(academicLevel)
-      .where(eq(academicLevel.academicLevel, note.academicLevel))
-      .limit(1);
-    if (existingacademicLevel.length > 0) {
-      academicLevelId = existingacademicLevel[0].id;
-    } else {
-      const newAcademicLevel = await notesdb
-        .insert(academicLevel)
-        .values({ academicLevel: note.academicLevel })
-        .returning({ id: academicLevel.id });
-      academicLevelId = newAcademicLevel[0].id;
-    }
-
-    const newNote = {
-      title: note.title,
-      slug: generateSlug(note.title),
-      content: note.content,
-      dateCreated: note.dateCreated,
-      dateUpdated: new Date().toISOString(),
-      email: userId,
-      topic: note.topic,
-      type: type,
-      visibility: note.visibility,
-      academicLevel: academicLevelId,
-      year: note.year,
-      language: note.language,
-      keywords: note.keywords,
-    };
-    const newNoteQuery = await notesdb
+    const [inserted] = await notesdb
       .insert(notes)
-      .values(newNote)
+      .values({
+        title: note.title,
+        slug: generateSlug(note.title),
+        content: note.content,
+        dateCreated: note.dateCreated,
+        dateUpdated: new Date().toISOString(),
+        email: userId,
+        topic: note.topic,
+        type: type,
+        visibility: note.visibility,
+        academicLevel: academicLevelId,
+        year: note.year,
+        language: note.language,
+        keywords: note.keywords,
+      })
       .returning({ insertedId: notes.noteId });
 
     return c.json(
-      returnJson(200, "New note created successfully", newNoteQuery[0], null),
+      returnJson(200, "New note created successfully", inserted, null),
     );
   } catch (error) {
     console.error(error);
@@ -125,7 +93,7 @@ newNoteRouter.post("/:type", async (c) => {
     return c.json(
       returnJson(
         500,
-        "An unexpected error occurred. Please try again later.",
+        "An unexpected error occurred.",
         null,
         null,
       ),
