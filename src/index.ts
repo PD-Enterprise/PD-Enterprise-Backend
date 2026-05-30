@@ -70,14 +70,6 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
     res.headers.set("Access-Control-Allow-Credentials", "true")
     res.headers.append("Vary", "Origin")
   }
-  if (c.req.method === "POST" && c.req.path.includes("sign-in")) {
-    console.log("[DEBUG] sign-in response Set-Cookie:", res.headers.get("set-cookie"))
-    console.log("[DEBUG] sign-in response all headers:", [...res.headers.entries()])
-  }
-  if (c.req.method === "GET" && c.req.path.includes("callback")) {
-    console.log("[DEBUG] callback Cookie header:", c.req.header("cookie"))
-    console.log("[DEBUG] callback URL:", c.req.url)
-  }
   return res
 })
 
