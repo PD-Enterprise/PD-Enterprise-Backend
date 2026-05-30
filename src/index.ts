@@ -10,7 +10,6 @@ import pdEnterpriseRouter from "./routes/pd-enterprise";
 import aiRouter from "./routes/grade-ai";
 import notesRouter from "./routes/cnotes";
 import { Bindings } from "./types";
-import { createAuth } from "./lib/auth";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -61,16 +60,5 @@ app.route("/users", usersRouter);
 app.route("/pd-enterprise", pdEnterpriseRouter);
 app.route("/grade-ai", aiRouter);
 app.route("/cnotes", notesRouter);
-app.on(["GET", "POST"], "/api/auth/*", async (c) => {
-  const auth = createAuth(c.env);
-  const res = await auth.handler(c.req.raw)
-  const origin = c.req.header("origin")
-  if (origin && validateRoute(origin)) {
-    res.headers.set("Access-Control-Allow-Origin", origin)
-    res.headers.set("Access-Control-Allow-Credentials", "true")
-    res.headers.append("Vary", "Origin")
-  }
-  return res
-})
 
 export default app;

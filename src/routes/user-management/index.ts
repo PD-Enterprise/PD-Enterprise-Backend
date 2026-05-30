@@ -10,7 +10,6 @@ import { Bindings } from "../../types";
 import { getUserRole } from "./utils/getUserRole";
 import { addNewUserToMainDB } from "./utils/addNewUser";
 import { addNewUserToNotesDB } from "./utils/addNewUser";
-import { createAuth } from "../../lib/auth";
 
 const usersRouter = new Hono<{ Bindings: Bindings }>();
 
@@ -139,16 +138,6 @@ usersRouter.post("/new-user", async (c: Context) => {
       ),
     );
   }
-});
-
-usersRouter.post("/test", async (c) => {
-  console.log(c.req.raw.headers)
-  const auth = createAuth(c.env);
-  const session = await auth.api.getSession({
-    headers: c.req.raw.headers,
-  });
-  console.log(session);
-  c.status(200);
 });
 
 export default usersRouter;
