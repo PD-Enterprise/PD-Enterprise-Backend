@@ -61,9 +61,9 @@ app.route("/users", usersRouter);
 app.route("/pd-enterprise", pdEnterpriseRouter);
 app.route("/grade-ai", aiRouter);
 app.route("/cnotes", notesRouter);
-app.on(["GET", "POST"], "/api/auth/*", (c) => {
+app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const auth = createAuth(c.env);
-  return auth.handler(c.req.raw)
+  return await auth.handler(c.req.raw)
 })
 
 export default app;
