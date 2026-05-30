@@ -21,6 +21,7 @@ export function createAuth(env: Bindings) {
       useSecureCookies: true,
       defaultCookieAttributes: {
         sameSite: "none",
+        secure: true,
       },
       ipAddress: {
         ipAddressHeaders: ["cf-connecting-ip"],
