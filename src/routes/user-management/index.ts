@@ -6,12 +6,17 @@ import { userExistsInMainDB } from "./utils/userExists";
 import { returnJson } from "@/utils/returnJson";
 import { api } from "../../../convex/_generated/api";
 import { ConvexClient } from "convex/browser";
-import { Bindings } from "../../types";
+import { Bindings, AppVariables } from "../../types";
 import { getUserRole } from "./utils/getUserRole";
 import { addNewUserToMainDB } from "./utils/addNewUser";
 import { addNewUserToNotesDB } from "./utils/addNewUser";
+import { authUser } from "@/src/utils/middleware/authenticateUser";
 
-const usersRouter = new Hono<{ Bindings: Bindings }>();
+const usersRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
+
+// Middleware
+usersRouter.use("/roles/*", authUser)
+usersRouter.use("/academic-level", authUser)
 
 /**
  * Get user role
@@ -20,9 +25,7 @@ const usersRouter = new Hono<{ Bindings: Bindings }>();
  * Returns: JSON
  */
 usersRouter.get("/roles/get-role", async (c) => {
-  const body = await c.req.json();
-  const email = body.email;
-
+  const email = c.get("user").email;
   if (!email) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
@@ -49,7 +52,6 @@ usersRouter.get("/roles/get-role", async (c) => {
     if (role == "") {
       console.error("Role not found");
       c.status(500);
-      throw new Error("Role not found");
       return c.json(
         returnJson(
           500,
@@ -67,7 +69,7 @@ usersRouter.get("/roles/get-role", async (c) => {
     return c.json(
       returnJson(
         500,
-        "An unexpected error occurred. Please try again later.",
+        "An unexpected error occurred.",
         null,
         error,
       ),
@@ -80,7 +82,7 @@ usersRouter.get("/roles/get-role", async (c) => {
  * Requires: email: string, name: string, avatarUrl: string
  * Returns: JSON
  */
-usersRouter.post("/new-user", async (c: Context) => {
+usersRouter.post("/new-user", async (c) => {
   const body = await c.req.json();
   const name = body.name;
   const email = body.email;
@@ -149,9 +151,8 @@ usersRouter.post("/new-user", async (c: Context) => {
  * Requires: email
  * Returns: JSON
  */
-usersRouter.get("/academic-level", async (c: Context) => {
-  const body = await c.req.json();
-  const email = body.email;
+usersRouter.get("/academic-level", async (c) => {
+  const email = c.get("user").email;
   if (!email) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
@@ -164,9 +165,7 @@ usersRouter.get("/academic-level", async (c: Context) => {
 
   const convexClient = new ConvexClient(c.env.CONVEX_URL);
   try {
-    const academicLevel = await convexClient.query(api.users.getAcademicLevel, {
-      email: body.email,
-    });
+    const academicLevel = await convexClient.query(api.users.getAcademicLevel, { email });
 
     if (!academicLevel) {
       c.status(404);
@@ -201,7 +200,7 @@ usersRouter.get("/academic-level", async (c: Context) => {
  * Requires: email, academicLevel
  * Returns: JSON
  */
-usersRouter.post("/academic-level", async (c: Context) => {
+usersRouter.post("/academic-level", async (c) => {
   const body = await c.req.json();
   const email = body.email;
   const academicLevel = body.academicLevel;

@@ -3,8 +3,11 @@ import { Hono } from "hono";
 import newNoteRouter from "./new-note";
 import notesRouter from "./notes";
 import noteRouter from "./note";
+import { authUser } from "@/src/utils/middleware/authenticateUser";
 
 const cnotesRouter = new Hono();
+
+cnotesRouter.use("/*", authUser)
 
 cnotesRouter.get("/", (c) => {
   c.status(200);

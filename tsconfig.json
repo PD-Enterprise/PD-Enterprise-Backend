@@ -15,6 +15,7 @@
       "@/drizzle/*": ["drizzle/*"],
       "@/utils/*": ["src/utils/*"],
       "@/db/*": ["src/db/*"],
+      "@/convex/*": ["convex/*"],
     },
   }
 }

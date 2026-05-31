@@ -33,11 +33,12 @@ export const getAcademicLevel = query({
       return null;
     }
 
-    const academicLevelIndex = user.academicLevel
-      ? await ctx.db.get(user.academicLevel)
-      : null;
+    if (!user.academicLevel) {
+      return null;
+    }
 
-    return academicLevelIndex;
+    const academicLevelDoc = await ctx.db.get(user.academicLevel);
+    return academicLevelDoc;
   },
 });
 
@@ -46,8 +47,7 @@ export const updateAcademicLevel = mutation({
   handler: async (ctx, args) => {
     const user = await isExistingUser(ctx, args.email);
     if (!user) {
-      console.error("User does not exist");
-      return null;
+      return new Error("User does not exist");
     }
 
     const academicLevelId = await ctx.db
@@ -57,8 +57,7 @@ export const updateAcademicLevel = mutation({
       )
       .unique();
     if (!academicLevelId) {
-      console.error("Academic level does not exist");
-      return null;
+      return new Error("Academic level not found");
     }
 
     try {
@@ -67,8 +66,7 @@ export const updateAcademicLevel = mutation({
       });
       return await ctx.db.get(user._id);
     } catch (error) {
-      console.error(error);
-      throw error;
+      return new Error("Failed to update academic level");
     }
   },
 });

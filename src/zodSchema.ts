@@ -20,3 +20,20 @@ export const noteSchema = z.object({
     keywords: z.string().optional(),
   }),
 });
+
+export const chatRequestSchema = z.object({
+  prompt: z.string().min(1).max(2000).trim(),
+  provider: z.enum(["groq", "gemini"]),
+  model: z.string().min(1),
+  mode: z.enum(["socratic", "direct"]),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant", "system"]),
+        content: z.string(),
+      }),
+    )
+    .default([]),
+  conversationId: z.string().min(1),
+  email: z.string().min(10),
+});

@@ -3,8 +3,12 @@ import { handleChat } from "./routes/chat-handler";
 import { returnJson } from "../../utils/returnJson";
 import { modelList } from "./utils/modelList";
 import { Bindings } from "../../types";
+import { authUser } from "@/src/utils/middleware/authenticateUser";
 
 const aiRouter = new Hono<{ Bindings: Bindings }>();
+
+
+aiRouter.use("/chat", authUser)
 
 aiRouter.get("/", (c) => {
   c.status(200);
@@ -35,7 +39,7 @@ aiRouter.post("/chat", handleChat);
  * Get model list
  * GET /grade-ai/get-model-list
  */
-aiRouter.get("/get-model-list", async (c) => {
+aiRouter.get("/model-list", async (c) => {
   c.status(200);
   return c.json(returnJson(200, "success", modelList, null));
 });

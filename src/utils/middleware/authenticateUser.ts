@@ -1,9 +1,10 @@
-import { Context, Next } from "hono";
+import { MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
 import { returnJson } from "../returnJson";
 import { decode } from "@auth/core/jwt";
+import { AppVariables, Bindings, userObject } from "@/src/types";
 
-export async function authUser(c: Context, next: Next) {
+export const authUser: MiddlewareHandler<{ Bindings: Bindings, Variables: AppVariables }> = async (c, next) => {
     const sessionToken = getCookie(c, "authjs.session-token") || getCookie(c, "__Secure-better-auth.session_token")
     if (!sessionToken) {
         c.status(401)
@@ -17,11 +18,11 @@ export async function authUser(c: Context, next: Next) {
                 ? "__Secure-better-auth.session_token"
                 : "authjs.session-token",
         })
+        // console.log(decoded)
         if (!decoded?.email) {
             return c.json({ error: "Unauthorized: invalid session" }, 401)
         }
-        // console.log(decoded)
-        c.set("user", decoded)
+        c.set("user", decoded as userObject)
         await next()
     } catch (e) {
         console.error(e)

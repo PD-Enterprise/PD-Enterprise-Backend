@@ -40,7 +40,6 @@ export function getSystemPrompt(
   mode: "socratic" | "direct",
   academicLevel: string,
 ): string {
-  console.log(academicLevel);
   const academicLevelAdded = `{UserAcademicLevel: ${academicLevel}}`;
 
   return mode === "socratic"

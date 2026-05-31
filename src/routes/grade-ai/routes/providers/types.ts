@@ -1,11 +1,13 @@
 export type ChatRole = "user" | "assistant" | "system";
+export type ModeType = "socratic" | "direct";
 
 export interface ChatMessage {
   role: ChatRole;
   content: string;
+  model?: string;
+  modeType?: ModeType;
 }
 
-export type ModeType = "socratic" | "direct";
 
 export interface ChatRequestBody {
   prompt: string;
@@ -17,7 +19,7 @@ export interface ChatRequestBody {
 }
 
 export interface StreamChunk {
-  type: "delta" | "usage";
+  type: "delta" | "usage" | "done" | "error";
   delta?: string;
   usage?: {
     promptTokens: number;

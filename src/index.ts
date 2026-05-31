@@ -56,19 +56,6 @@ app.use("/grade-ai/chat/", rateLimiter(15));
 app.use("*", rateLimiter(60));
 
 /*
-  Middleware
-*/
-app.use("/users/*", async (c, next) => {
-  await authUser(c, next)
-})
-app.use("/cnotes/*", async (c, next) => {
-  await authUser(c, next)
-})
-app.use("/grade-ai/*", async (c, next) => {
-  await authUser(c, next)
-})
-
-/*
   Routes
 */
 app.route("/", root);

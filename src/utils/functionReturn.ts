@@ -1,4 +1,4 @@
-import { functionReturn } from "../types";
+import { functionReturnType } from "../types";
 
 export function functionReturn(
   successState: boolean,
@@ -6,6 +6,6 @@ export function functionReturn(
   message: string,
   data: any = null,
   error: any = null,
-): functionReturn {
+): functionReturnType {
   return [successState, errorState, message, data, error];
 }

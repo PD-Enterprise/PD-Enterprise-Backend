@@ -14,3 +14,13 @@ export type functionReturnType = [
   data?: any,
   error?: string,
 ];
+
+export type userObject = {
+  name: string;
+  email: string;
+  picture: string;
+}
+
+export type AppVariables = {
+  user: userObject
+}

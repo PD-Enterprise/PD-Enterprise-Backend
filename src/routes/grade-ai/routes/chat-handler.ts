@@ -1,89 +1,38 @@
 import { Context } from "hono";
-import { getSystemPrompt } from "./prompts/system-prompts";
 import { ChatMessage } from "./providers/types";
 import {
   NDJSON_HEADERS,
   formatNDJSONChunk,
   formatNDJSONDone,
+  formatNDJSONError,
 } from "../utils/stream-utils";
 import { resolveProvider } from "./providers/provider-factory";
-import z from "zod";
-import { Bindings } from "../../../types";
 import { ConvexClient } from "convex/browser";
-import { api } from "../../../../convex/_generated/api";
-
-export const chatRequestSchema = z.object({
-  prompt: z.string().min(1).max(2000).trim(),
-  provider: z.enum(["groq", "gemini"]),
-  model: z.string().min(1),
-  mode: z.enum(["socratic", "direct"]),
-  history: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant", "system"]),
-        content: z.string(),
-      }),
-    )
-    .default([]),
-  conversationId: z.string().min(1),
-  email: z.string().min(10),
-});
-
-function buildMessages(
-  prompt: string,
-  history: ChatMessage[],
-  mode: "socratic" | "direct",
-  academicLevel: string,
-): ChatMessage[] {
-  const systemPrompt = getSystemPrompt(mode, academicLevel);
-  return [
-    { role: "system", content: systemPrompt },
-    ...history,
-    { role: "user", content: prompt },
-  ];
-}
+import { api } from "@/convex/_generated/api";
+import { chatRequestSchema } from "@/src/zodSchema";
+import { buildMessages } from "../utils/buildMessage";
+import { returnJson } from "@/src/utils/returnJson";
 
 export async function handleChat(c: Context): Promise<Response> {
-  const convexClient = new ConvexClient(c.env.CONVEX_URL);
-  if (!convexClient) {
-    console.error("CRITICAL: Missing Convex URL");
-    return new Response("CRITICAL: Missing Convex URL", { status: 500 });
-  }
-
-  const env = c.env;
-  if (!env.GROQ_API_KEY || !env.GEMINI_API_KEY) {
-    console.error("CRITICAL: Missing API keys");
-  }
-
-  const rawBody = await c.req.json().catch(() => null);
-  if (!rawBody) {
-    return c.json({ error: "Invalid JSON body" }, 400);
-  }
-
-  const parsed = chatRequestSchema.safeParse(rawBody);
+  const body = await c.req.json()
+  const parsed = chatRequestSchema.safeParse(body);
   if (!parsed.success) {
-    console.log("Validation failed", parsed.error.issues);
-    return c.json(
-      { error: "Validation failed", issues: parsed.error.issues },
-      400,
-    );
+    console.error("Validation failed", parsed.error.issues);
+    c.status(400);
+    return c.json(returnJson(400, "Validation failed", null, null));
   }
 
-  const { prompt, provider, model, mode, history, conversationId, email } =
-    parsed.data;
+  const { prompt, provider, model, mode, history, conversationId, email } = parsed.data;
 
-  let inferenceProvider: any;
-  try {
-    inferenceProvider = resolveProvider(provider, env);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 400);
-  }
+  const inferenceProvider = resolveProvider(provider, c.env);
 
+  const convexClient = new ConvexClient(c.env.CONVEX_URL);
   const academicLevel = await convexClient.query(api.users.getAcademicLevel, {
     email,
   });
   if (!academicLevel) {
-    return new Response("CRITICAL: Missing academic level", { status: 500 });
+    c.status(404);
+    return c.json(returnJson(404, "Academic level not found", null, academicLevel));
   }
 
   const messages = buildMessages(
@@ -103,12 +52,7 @@ export async function handleChat(c: Context): Promise<Response> {
         }
         controller.enqueue(encode(formatNDJSONDone()));
       } catch (err: any) {
-        const errorChunk =
-          JSON.stringify({
-            type: "error",
-            message: err.message,
-          }) + "\n";
-        controller.enqueue(encode(errorChunk));
+        controller.enqueue(encode(formatNDJSONError(err.message)));
       } finally {
         controller.close();
       }
