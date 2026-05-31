@@ -202,7 +202,7 @@ usersRouter.get("/academic-level", async (c) => {
  */
 usersRouter.post("/academic-level", async (c) => {
   const body = await c.req.json();
-  const email = body.email;
+  const email = c.get("user").email;
   const academicLevel = body.academicLevel;
   if (!email || !academicLevel) {
     c.status(400);
