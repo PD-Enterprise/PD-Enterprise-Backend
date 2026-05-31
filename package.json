@@ -5,6 +5,7 @@
     "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
+    "@auth/core": "^0.34.3",
     "@google/genai": "^1.50.1",
     "@neondatabase/serverless": "^1.1.0",
     "better-auth": "^1.6.12",

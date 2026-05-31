@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { validateRoute } from "./utils/validateRoute";
-import { returnJson } from "./utils/returnJson";
-import { rateLimiter } from "./utils/ratelimiter";
+import { validateRoute } from "@/utils/validateRoute";
+import { returnJson } from "@/utils/returnJson";
+import { rateLimiter } from "@/utils/middleware/ratelimiter";
+import { authUser } from "@/utils/middleware/authenticateUser"
 
 import root from "./routes";
 import usersRouter from "./routes/user-management";
@@ -10,6 +11,8 @@ import pdEnterpriseRouter from "./routes/pd-enterprise";
 import aiRouter from "./routes/grade-ai";
 import notesRouter from "./routes/cnotes";
 import { Bindings } from "./types";
+import { getCookie } from "hono/cookie"
+import { decode } from "@auth/core/jwt"
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -51,6 +54,19 @@ app.use("/pd-enterprise/blog/posts/:slug", rateLimiter());
 app.use("/note/:slug", rateLimiter());
 app.use("/grade-ai/chat/", rateLimiter(15));
 app.use("*", rateLimiter(60));
+
+/*
+  Middleware
+*/
+app.use("/users/*", async (c, next) => {
+  await authUser(c, next)
+})
+app.use("/cnotes/*", async (c, next) => {
+  await authUser(c, next)
+})
+app.use("/grade-ai/*", async (c, next) => {
+  await authUser(c, next)
+})
 
 /*
   Routes
