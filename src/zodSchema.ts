@@ -15,7 +15,7 @@ export const noteSchema = z.object({
   visibility: z.string().max(255).trim(),
   year: z.number().int().positive(),
   language: z.string().max(255).trim(),
-  keywords: z.string().optional(),
+  keywords: z.string().optional().nullable(),
 });
 
 export const chatRequestSchema = z.object({

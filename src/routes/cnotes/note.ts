@@ -81,7 +81,8 @@ noteRouter.get("/:slug", async (c) => {
       );
     }
 
-    return c.json(returnJson(200, "Successfully found note", note, null));
+    const { email: _email, ...safeNote } = note[0]
+    return c.json(returnJson(200, "Successfully found note", [safeNote], null));
   } catch (error) {
     console.error(error);
     c.status(500);
@@ -201,9 +202,8 @@ noteRouter.post("/:slug/update", async (c) => {
  * Returns: JSON
  */
 noteRouter.delete("/:slug/delete", async (c) => {
-  const slug = c.req.param("slug");
-  const body = await c.req.json();
-  const email = body.email;
+  const slug = c.req.param("slug")
+  const email = c.get("user").email;
   if (!email) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
