@@ -34,3 +34,6 @@ lerna-debug.log*
 .DS_Store
 
 bun.lock
+
+drizzle/cnotes/*.sql
+drizzle/users/*.sql

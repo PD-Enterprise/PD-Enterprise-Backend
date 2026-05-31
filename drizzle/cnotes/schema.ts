@@ -5,8 +5,7 @@ import { sql } from "drizzle-orm"
 
 export const user = pgTable("user", {
 	id: serial().primaryKey().notNull(),
-	email: varchar({ length: 255 }).notNull(),
-	institution: text(),
+	email: varchar({ length: 255 }).notNull()
 });
 
 export const academicLevel = pgTable("academic_level", {
@@ -31,14 +30,14 @@ export const notes = pgTable("notes", {
 	keywords: text(),
 }, (table) => [
 	foreignKey({
-			columns: [table.email],
-			foreignColumns: [user.id],
-			name: "email"
-		}),
+		columns: [table.email],
+		foreignColumns: [user.id],
+		name: "email"
+	}),
 	foreignKey({
-			columns: [table.academicLevel],
-			foreignColumns: [academicLevel.id],
-			name: "academic_level"
-		}),
+		columns: [table.academicLevel],
+		foreignColumns: [academicLevel.id],
+		name: "academic_level"
+	}),
 	unique("notes_slug_key").on(table.slug),
 ]);
