@@ -11,6 +11,7 @@ import { existingAcademicLevel } from "@/db/cnotes/utils/existingAcademicLevel";
 const newNoteRouter = new Hono<{ Bindings: Bindings }>();
 
 /**
+ * Add note
  * POST /cnotes/new-note/:type
  * Requires: email, note
  * Returns: JSON

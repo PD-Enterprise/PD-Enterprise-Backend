@@ -13,6 +13,7 @@ import { existingAcademicLevel } from "@/src/db/cnotes/utils/existingAcademicLev
 const noteRouter = new Hono<{ Bindings: Bindings }>();
 
 /**
+ * Get note
  * POST /cnotes/note/:slug
  * Requires: email, note
  * Returns: JSON
@@ -97,6 +98,7 @@ noteRouter.get("/:slug", async (c) => {
   }
 });
 /**
+ * Update note
  * POST /cnotes/note/:slug/update
  * Requires: email, note
  * Returns: JSON
@@ -184,6 +186,7 @@ noteRouter.post("/:slug/update", async (c) => {
   }
 });
 /**
+ * Delete note
  * DELETE /cnotes/note/:slug/delete
  * Requires: email
  * Returns: JSON
