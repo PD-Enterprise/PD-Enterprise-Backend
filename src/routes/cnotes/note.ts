@@ -6,11 +6,11 @@ import { userExistsInNotesDB } from "@/src/routes/user-management/utils/userExis
 import { returnJson } from "@/utils/returnJson";
 import { noteSchema } from "../../zodSchema";
 import { generateSlug } from "@/utils/generateSlug";
-import { Bindings } from "../../types";
+import { AppVariables, Bindings } from "../../types";
 import validator from "validator";
 import { existingAcademicLevel } from "@/src/db/cnotes/utils/existingAcademicLevel";
 
-const noteRouter = new Hono<{ Bindings: Bindings }>();
+const noteRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
 
 /**
  * Get note
@@ -20,9 +20,7 @@ const noteRouter = new Hono<{ Bindings: Bindings }>();
  */
 noteRouter.get("/:slug", async (c) => {
   const slug = c.req.param("slug");
-
-  const body = await c.req.json();
-  const email = body.email;
+  const email = c.get("user").email;
   if (!email) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
@@ -66,7 +64,7 @@ noteRouter.get("/:slug", async (c) => {
       .where(eq(notes.slug, slug))
       .limit(1);
 
-    if (!note) {
+    if (!note.length) {
       c.status(404);
       return c.json(returnJson(404, "Note not found.", null, null));
     }
@@ -90,7 +88,7 @@ noteRouter.get("/:slug", async (c) => {
     return c.json(
       returnJson(
         500,
-        "An unexpected error occurred. Please try again later.",
+        "An unexpected error occurred.",
         null,
         null,
       ),
@@ -105,15 +103,15 @@ noteRouter.get("/:slug", async (c) => {
  */
 noteRouter.post("/:slug/update", async (c) => {
   const slug = c.req.param("slug");
-
   const body = await c.req.json();
-  const result = noteSchema.safeParse(body);
+  const email = c.get("user").email;
+  const result = noteSchema.safeParse(body.note);
   if (!result.success) {
     console.log(result.error);
     c.status(400);
     return c.json(returnJson(400, "Invalid input", null, result.error));
   }
-  const { email, note } = result.data
+  const note = result.data
   if (!email || !note) {
     c.status(400);
     return c.json(returnJson(400, "Missing email or note data", null, null));
@@ -139,11 +137,22 @@ noteRouter.post("/:slug/update", async (c) => {
   }
 
   try {
+    let newSlug = slug;
+    const oldNote = await notesdb
+      .select({ title: notes.title })
+      .from(notes)
+      .where(eq(notes.slug, slug))
+      .limit(1);
+
+    if (oldNote[0].title !== note.title) {
+      newSlug = generateSlug(note.title);
+    }
+
     const updated = await notesdb
       .update(notes)
       .set({
         title: note.title,
-        slug: generateSlug(note.title),
+        slug: newSlug,
         content: note.content,
         dateCreated: note.dateCreated,
         dateUpdated: new Date().toISOString(),

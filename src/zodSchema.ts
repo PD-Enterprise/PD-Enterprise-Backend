@@ -1,24 +1,21 @@
 import { z } from "zod";
 
 export const noteSchema = z.object({
-  email: z.string().email().trim().toLowerCase(),
-  note: z.object({
-    title: z.string().min(1).max(255).trim(),
-    slug: z.string().min(1).max(255).trim(),
+  title: z.string().min(1).max(255).trim(),
+  slug: z.string().min(1).max(255).trim(),
 
-    content: z.string().trim(),
+  content: z.string().trim(),
 
-    dateCreated: z.string(),
+  dateCreated: z.string(),
 
-    academicLevel: z.string().min(1).max(255).trim(),
-    topic: z.string().min(1).max(255).trim(),
+  academicLevel: z.string().min(1).max(255).trim(),
+  topic: z.string().min(1).max(255).trim(),
 
-    type: z.string().min(1),
-    visibility: z.string().max(255).trim(),
-    year: z.number().int().positive(),
-    language: z.string().max(255).trim(),
-    keywords: z.string().optional(),
-  }),
+  type: z.string().min(1),
+  visibility: z.string().max(255).trim(),
+  year: z.number().int().positive(),
+  language: z.string().max(255).trim(),
+  keywords: z.string().optional(),
 });
 
 export const chatRequestSchema = z.object({

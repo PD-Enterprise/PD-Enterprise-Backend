@@ -4,10 +4,10 @@ import { createNotesDb } from "../../db/cnotes";
 import { notes, academicLevel, user } from "@/drizzle/cnotes/schema";
 import { userExistsInNotesDB } from "@/src/routes/user-management/utils/userExists";
 import { returnJson } from "@/utils/returnJson";
-import { Bindings } from "../../types";
+import { AppVariables, Bindings } from "../../types";
 import validator from "validator";
 
-const notesRouter = new Hono<{ Bindings: Bindings }>();
+const notesRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
 
 /**
  * Get notes
@@ -15,9 +15,8 @@ const notesRouter = new Hono<{ Bindings: Bindings }>();
  * Requires: email
  * Returns: JSON
  */
-notesRouter.post("/", async (c) => {
-  const body = await c.req.json();
-  const email = body.email;
+notesRouter.get("/", async (c) => {
+  const email = c.get("user").email;
   if (!email) {
     console.error("Email not provided");
     c.status(400);

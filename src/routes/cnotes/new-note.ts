@@ -5,10 +5,10 @@ import { notes, academicLevel } from "@/drizzle/cnotes/schema";
 import { userExistsInNotesDB } from "@/src/routes/user-management/utils/userExists";
 import { returnJson } from "@/utils/returnJson";
 import { generateSlug } from "@/utils/generateSlug";
-import { Bindings } from "../../types";
+import { AppVariables, Bindings } from "../../types";
 import { existingAcademicLevel } from "@/db/cnotes/utils/existingAcademicLevel";
 
-const newNoteRouter = new Hono<{ Bindings: Bindings }>();
+const newNoteRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
 
 /**
  * Add note
@@ -18,20 +18,15 @@ const newNoteRouter = new Hono<{ Bindings: Bindings }>();
  */
 newNoteRouter.post("/:type", async (c) => {
   const type = c.req.param("type");
-  if (!type) {
-    console.error("Type not provided");
-    c.status(400);
-    return c.json(returnJson(400, "Missing type", null, null));
-  }
-
   const body = await c.req.json();
-  const result = noteSchema.safeParse(body);
+  const email = c.get("user").email;
+  const result = noteSchema.safeParse(body.note);
   if (!result.success) {
     console.error(result.error);
     c.status(400);
     return c.json(returnJson(400, "Invalid input", null, result.error));
   }
-  const { email, note } = result.data;
+  const note = result.data;
   if (!email || !note) {
     console.error("Email or note not provided");
     c.status(400);
