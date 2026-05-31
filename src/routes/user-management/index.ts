@@ -143,5 +143,116 @@ usersRouter.post("/new-user", async (c: Context) => {
     );
   }
 });
+/**
+ * Get user academic level
+ * POST /grade-ai/get-user-academic-level
+ * Requires: email
+ * Returns: JSON
+ */
+usersRouter.get("/academic-level", async (c: Context) => {
+  const body = await c.req.json();
+  const email = body.email;
+  if (!email) {
+    c.status(400);
+    return c.json(returnJson(400, "Missing required fields", null, null));
+  }
+  if (!validator.isEmail(email)) {
+    console.log("Invalid email format");
+    c.status(400);
+    return c.json(returnJson(400, "Invalid email format", null, null));
+  }
+
+  const convexClient = new ConvexClient(c.env.CONVEX_URL);
+  try {
+    const academicLevel = await convexClient.query(api.users.getAcademicLevel, {
+      email: body.email,
+    });
+
+    if (!academicLevel) {
+      c.status(404);
+      return c.json(returnJson(404, "Academic level not found", null, null));
+    }
+
+    c.status(200);
+    return c.json(
+      returnJson(
+        200,
+        "Successfully retrieved academic level",
+        academicLevel,
+        null,
+      ),
+    );
+  } catch (error) {
+    console.error(error);
+    c.status(500);
+    return c.json(
+      returnJson(
+        500,
+        "An unexpected error occurred. Please try again later.",
+        null,
+        null,
+      ),
+    );
+  }
+});
+/**
+ * Update user academic level
+ * POST /grade-ai/update-user-academic-level
+ * Requires: email, academicLevel
+ * Returns: JSON
+ */
+usersRouter.post("/academic-level", async (c: Context) => {
+  const body = await c.req.json();
+  const email = body.email;
+  const academicLevel = body.academicLevel;
+  if (!email || !academicLevel) {
+    c.status(400);
+    return c.json(returnJson(400, "Missing required fields", null, null));
+  }
+  if (!validator.isEmail(email)) {
+    console.log("Invalid email format");
+    c.status(400);
+    return c.json(returnJson(400, "Invalid email format", null, null));
+  }
+
+  const convexClient = new ConvexClient(c.env.CONVEX_URL);
+  try {
+    const academicLevel = await convexClient.mutation(
+      api.users.updateAcademicLevel,
+      {
+        email: body.email,
+        academicLevel: body.academicLevel,
+      },
+    );
+
+    if (!academicLevel) {
+      c.status(404);
+      return c.json(
+        returnJson(404, "Could not update academic level", null, null),
+      );
+    }
+
+    c.status(200);
+    return c.json(
+      returnJson(
+        200,
+        "Successfully updated academic level",
+        academicLevel,
+        null,
+      ),
+    );
+  } catch (error) {
+    console.error(error);
+    c.status(500);
+    return c.json(
+      returnJson(
+        500,
+        "An unexpected error occurred. Please try again later.",
+        null,
+        null,
+      ),
+    );
+  }
+});
 
 export default usersRouter;
