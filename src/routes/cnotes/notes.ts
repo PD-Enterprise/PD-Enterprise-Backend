@@ -56,7 +56,7 @@ notesRouter.get("/", async (c) => {
       })
       .from(notes)
       .innerJoin(academicLevel, eq(notes.academicLevel, academicLevel.id))
-      .innerJoin(user, eq(notes.email, user.id))
+      .innerJoin(user, eq(notes.userId, user.id))
       .where(eq(user.email, email));
 
     if (!notesList) {

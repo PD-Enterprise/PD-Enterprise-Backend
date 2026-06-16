@@ -250,7 +250,7 @@ The path `/note/:slug` doesn't match any route. The actual note routes are mount
 
 **File:** `src/routes/cnotes/note.ts` lines 107-235
 
-The update handler does verify the user exists and builds a `WHERE` clause with `eq(notes.email, userId)`, but there's no explicit "you don't own this" error — it silently returns a 404 if the note doesn't belong to the user. A 403 "Forbidden" would be more appropriate.
+The update handler does verify the user exists and builds a `WHERE` clause with `eq(notes.userId, userId)`, but there's no explicit "you don't own this" error — it silently returns a 404 if the note doesn't belong to the user. A 403 "Forbidden" would be more appropriate.
 
 ### 4.11 Empty if-block
 

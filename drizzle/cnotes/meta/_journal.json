@@ -15,6 +15,27 @@
       "when": 1780212863305,
       "tag": "0001_mean_nocturne",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781605213197,
+      "tag": "0002_faulty_gravity",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781605282320,
+      "tag": "0003_old_omega_red",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781605743281,
+      "tag": "0004_milky_beast",
+      "breakpoints": true
     }
   ]
 }

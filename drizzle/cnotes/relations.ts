@@ -1,9 +1,9 @@
 import { relations } from "drizzle-orm/relations";
 import { user, notes, academicLevel } from "./schema";
 
-export const notesRelations = relations(notes, ({one}) => ({
+export const notesRelations = relations(notes, ({ one }) => ({
 	user: one(user, {
-		fields: [notes.email],
+		fields: [notes.userId],
 		references: [user.id]
 	}),
 	academicLevel: one(academicLevel, {
@@ -12,10 +12,10 @@ export const notesRelations = relations(notes, ({one}) => ({
 	}),
 }));
 
-export const userRelations = relations(user, ({many}) => ({
+export const userRelations = relations(user, ({ many }) => ({
 	notes: many(notes),
 }));
 
-export const academicLevelRelations = relations(academicLevel, ({many}) => ({
+export const academicLevelRelations = relations(academicLevel, ({ many }) => ({
 	notes: many(notes),
 }));

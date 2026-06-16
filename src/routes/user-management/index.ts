@@ -1,4 +1,4 @@
-import { Context, Hono } from "hono";
+import { Hono } from "hono";
 import validator from "validator";
 import { createNotesDb } from "@/db/cnotes";
 import { createUsersDb } from "@/db/users";
@@ -11,12 +11,14 @@ import { getUserRole } from "./utils/getUserRole";
 import { addNewUserToMainDB } from "./utils/addNewUser";
 import { addNewUserToNotesDB } from "./utils/addNewUser";
 import { authUser } from "@/src/utils/middleware/authenticateUser";
+import { userObjectSchema } from "@/src/zodSchema";
 
 const usersRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
 
 // Middleware
 usersRouter.use("/roles/*", authUser)
 usersRouter.use("/academic-level", authUser)
+usersRouter.use("/new-user", authUser)
 
 /**
  * Get user role
@@ -84,9 +86,16 @@ usersRouter.get("/roles/get-role", async (c) => {
  */
 usersRouter.post("/new-user", async (c) => {
   const body = await c.req.json();
-  const name = body.name;
-  const email = body.email;
-  const avatarUrl = body.avatarUrl;
+  const parsed = userObjectSchema.safeParse(body);
+  if (!parsed.success) {
+    console.error("Validation failed", parsed.error.issues);
+    c.status(400);
+    return c.json(returnJson(400, "Validation failed", null, null));
+  }
+  const data = parsed.data
+  const name = data.name;
+  const avatarUrl = data.picture;
+  const email = c.get("user").email;
 
   if (!email || !name || !avatarUrl) {
     c.status(400);
@@ -219,7 +228,7 @@ usersRouter.post("/academic-level", async (c) => {
     const academicLevel = await convexClient.mutation(
       api.users.updateAcademicLevel,
       {
-        email: body.email,
+        email: email,
         academicLevel: body.academicLevel,
       },
     );

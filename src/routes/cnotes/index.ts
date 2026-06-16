@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import newNoteRouter from "./new-note";
 import notesRouter from "./notes";
 import noteRouter from "./note";
+import folderRouter from "./folders"
 import { authUser } from "@/src/utils/middleware/authenticateUser";
 
 const cnotesRouter = new Hono();
@@ -16,5 +17,6 @@ cnotesRouter.get("/", (c) => {
 cnotesRouter.route("/new-note", newNoteRouter);
 cnotesRouter.route("/notes", notesRouter);
 cnotesRouter.route("/note", noteRouter);
+cnotesRouter.route("/folder", folderRouter)
 
 export default cnotesRouter;

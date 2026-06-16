@@ -37,3 +37,5 @@ bun.lock
 
 drizzle/cnotes/*.sql
 drizzle/users/*.sql
+drizzle/cnotes/meta/*_snapshot.json
+drizzle/users/meta/*_snapshot.json

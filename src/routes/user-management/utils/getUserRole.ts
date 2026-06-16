@@ -19,11 +19,11 @@ export async function getUserRole(
       const role: Record<string, any> = await db
         .update(users)
         .set({ membership: "tier-1" })
-        .where(eq(users.email, email));
+        .where(eq(users.email, email))
       if (!role) {
         throw new Error("Role not updated");
       }
-      return role[0].role;
+      return "tier-1";
     } catch (error) {
       console.error(error);
       throw error;

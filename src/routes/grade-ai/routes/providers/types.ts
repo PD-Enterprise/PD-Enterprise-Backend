@@ -5,14 +5,11 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   model?: string;
-  modeType?: ModeType;
 }
-
 
 export interface ChatRequestBody {
   prompt: string;
   provider: "groq" | "gemini";
-  model: string;
   mode: ModeType;
   history: ChatMessage[];
   conversationId: string;

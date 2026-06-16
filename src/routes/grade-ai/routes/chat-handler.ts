@@ -21,8 +21,8 @@ export async function handleChat(c: Context): Promise<Response> {
     c.status(400);
     return c.json(returnJson(400, "Validation failed", null, null));
   }
-
-  const { prompt, provider, model, mode, history, conversationId, email } = parsed.data;
+  const { prompt, provider, model, mode, history, conversationId } = parsed.data;
+  const email = c.get("user").email;
 
   const inferenceProvider = resolveProvider(provider, c.env);
 
