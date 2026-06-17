@@ -17,9 +17,14 @@ const newNoteRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>(
  * Returns: JSON
  */
 newNoteRouter.post("/:type", async (c) => {
+  const userObj = c.get("user")
+  if (userObj === undefined) {
+    c.status(401)
+    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
+  }
   const type = c.req.param("type");
   const body = await c.req.json();
-  const email = c.get("user").email;
+  const email = userObj.email;
   const result = noteSchema.safeParse(body.note);
   if (!result.success) {
     console.error(result.error);
@@ -35,8 +40,7 @@ newNoteRouter.post("/:type", async (c) => {
   const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
 
   const userId = await userExistsInNotesDB(notesdb, email);
-  console.error(userId);
-  if (!userId || userId instanceof Error) {
+  if (userId instanceof Error) {
     console.error(userId);
     c.status(401);
     return c.json(
@@ -79,7 +83,6 @@ newNoteRouter.post("/:type", async (c) => {
         keywords: note.keywords,
       })
       .returning({ insertedId: notes.noteId });
-
     return c.json(
       returnJson(200, "New note created successfully", inserted, null),
     );

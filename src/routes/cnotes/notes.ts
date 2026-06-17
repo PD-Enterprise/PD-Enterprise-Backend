@@ -16,14 +16,19 @@ const notesRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
  * Returns: JSON
  */
 notesRouter.get("/", async (c) => {
-  const email = c.get("user").email;
+  const userObj = c.get("user")
+  if (userObj === undefined) {
+    c.status(401)
+    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
+  }
+  const email = userObj.email;
   if (!email) {
     console.error("Email not provided");
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
   if (!validator.isEmail(email)) {
-    console.log("Invalid email format");
+    console.error("Invalid email format");
     c.status(400);
     return c.json(returnJson(400, "Invalid email format", null, null));
   }

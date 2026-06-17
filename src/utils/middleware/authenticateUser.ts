@@ -5,18 +5,18 @@ import { decode } from "@auth/core/jwt";
 import { AppVariables, Bindings, userObject } from "@/src/types";
 
 export const authUser: MiddlewareHandler<{ Bindings: Bindings, Variables: AppVariables }> = async (c, next) => {
-    const sessionToken = getCookie(c, "authjs.session-token") || getCookie(c, "__Secure-authjs.session-token")
-    console.log(sessionToken)
+    const secureToken = getCookie(c, "__Secure-authjs.session-token")
+    const normalToken = getCookie(c, "authjs.session-token")
+
+    const sessionToken = secureToken ?? normalToken
     if (sessionToken == undefined) {
         c.set("user", undefined)
         await next()
     }
-    const salt = sessionToken
+    const salt = secureToken
         ? "__Secure-authjs.session-token"
         : "authjs.session-token"
     try {
-        console.log(c.env.AUTH_SECRET)
-        console.log("length", c.env.AUTH_SECRET.length)
         const decoded = await decode({
             token: sessionToken,
             secret: c.env.AUTH_SECRET!,

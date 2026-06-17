@@ -19,14 +19,19 @@ const noteRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
  * Returns: JSON
  */
 noteRouter.get("/:slug", async (c) => {
+  const userObj = c.get("user")
+  if (userObj === undefined) {
+    c.status(401)
+    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
+  }
   const slug = c.req.param("slug");
-  const email = c.get("user").email;
+  const email = userObj.email;
   if (!email) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
   if (!validator.isEmail(email)) {
-    console.log("Invalid email format");
+    console.error("Invalid email format");
     c.status(400);
     return c.json(returnJson(400, "Invalid email format", null, null));
   }
@@ -103,12 +108,17 @@ noteRouter.get("/:slug", async (c) => {
  * Returns: JSON
  */
 noteRouter.post("/:slug/update", async (c) => {
+  const userObj = c.get("user")
+  if (userObj === undefined) {
+    c.status(401)
+    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
+  }
   const slug = c.req.param("slug");
   const body = await c.req.json();
-  const email = c.get("user").email;
+  const email = userObj.email;
   const result = noteSchema.safeParse(body.note);
   if (!result.success) {
-    console.log(result.error);
+    console.error(result.error);
     c.status(400);
     return c.json(returnJson(400, "Invalid input", null, result.error));
   }
@@ -202,14 +212,19 @@ noteRouter.post("/:slug/update", async (c) => {
  * Returns: JSON
  */
 noteRouter.delete("/:slug/delete", async (c) => {
+  const userObj = c.get("user")
+  if (userObj === undefined) {
+    c.status(401)
+    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
+  }
   const slug = c.req.param("slug")
-  const email = c.get("user").email;
+  const email = userObj.email;
   if (!email) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
   if (!validator.isEmail(email)) {
-    console.log("Invalid email format");
+    console.error("Invalid email format");
     c.status(400);
     return c.json(returnJson(400, "Invalid email format", null, null));
   }

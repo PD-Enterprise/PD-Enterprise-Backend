@@ -36,6 +36,13 @@
       "when": 1781605743281,
       "tag": "0004_milky_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781721936772,
+      "tag": "0005_handy_albert_cleary",
+      "breakpoints": true
     }
   ]
 }

@@ -155,7 +155,7 @@ usersRouter.get("/academic-level", async (c) => {
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
   if (!validator.isEmail(email)) {
-    console.log("Invalid email format");
+    console.error("Invalid email format");
     c.status(400);
     return c.json(returnJson(400, "Invalid email format", null, null));
   }
@@ -206,7 +206,7 @@ usersRouter.post("/academic-level", async (c) => {
     return c.json(returnJson(400, "Missing required fields", null, null));
   }
   if (!validator.isEmail(email)) {
-    console.log("Invalid email format");
+    console.error("Invalid email format");
     c.status(400);
     return c.json(returnJson(400, "Invalid email format", null, null));
   }
