@@ -18,7 +18,7 @@ export const notes = pgTable("notes", {
 	content: text().notNull(),
 	dateCreated: date("date_created").notNull(),
 	dateUpdated: timestamp("date_updated", { mode: 'string' }).defaultNow().notNull(),
-	userId: integer().notNull(),
+	email: integer().notNull(),
 	topic: varchar({ length: 255 }).notNull(),
 	type: text().notNull(),
 	visibility: varchar({ length: 255 }).notNull(),
@@ -29,7 +29,7 @@ export const notes = pgTable("notes", {
 	folderId: integer("folder_id"),
 }, (table) => [
 	foreignKey({
-		columns: [table.userId],
+		columns: [table.email],
 		foreignColumns: [user.id],
 		name: "email"
 	}),

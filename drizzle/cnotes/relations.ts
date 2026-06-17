@@ -3,7 +3,7 @@ import { user, notes, academicLevel } from "./schema";
 
 export const notesRelations = relations(notes, ({ one }) => ({
 	user: one(user, {
-		fields: [notes.userId],
+		fields: [notes.email],
 		references: [user.id]
 	}),
 	academicLevel: one(academicLevel, {

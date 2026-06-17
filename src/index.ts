@@ -3,7 +3,6 @@ import { cors } from "hono/cors";
 import { validateRoute } from "@/utils/validateRoute";
 import { returnJson } from "@/utils/returnJson";
 import { rateLimiter } from "@/utils/middleware/ratelimiter";
-import { authUser } from "@/utils/middleware/authenticateUser"
 
 import root from "./routes";
 import usersRouter from "./routes/user-management";
@@ -11,8 +10,6 @@ import pdEnterpriseRouter from "./routes/pd-enterprise";
 import aiRouter from "./routes/grade-ai";
 import notesRouter from "./routes/cnotes";
 import { Bindings } from "./types";
-import { getCookie } from "hono/cookie"
-import { decode } from "@auth/core/jwt"
 
 const app = new Hono<{ Bindings: Bindings }>();
 

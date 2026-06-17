@@ -22,5 +22,5 @@ export type userObject = {
 }
 
 export type AppVariables = {
-  user: userObject
+  user: userObject | undefined
 }

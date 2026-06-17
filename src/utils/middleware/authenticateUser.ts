@@ -6,9 +6,9 @@ import { AppVariables, Bindings, userObject } from "@/src/types";
 
 export const authUser: MiddlewareHandler<{ Bindings: Bindings, Variables: AppVariables }> = async (c, next) => {
     const sessionToken = getCookie(c, "authjs.session-token") || getCookie(c, "__Secure-authjs.session-token")
-    if (!sessionToken) {
-        c.status(401)
-        return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
+    if (sessionToken == undefined) {
+        c.set("user", undefined)
+        await next()
     }
     try {
         const decoded = await decode({
@@ -16,15 +16,15 @@ export const authUser: MiddlewareHandler<{ Bindings: Bindings, Variables: AppVar
             secret: c.env.AUTH_SECRET!,
             salt: "authjs.session-token",
         })
-        // console.log(decoded)
         if (!decoded?.email) {
+            console.error("[authUser] no email in decoded token")
             return c.json({ error: "Unauthorized: invalid session" }, 401)
         }
         c.set("user", decoded as userObject)
         await next()
     } catch (e) {
-        console.error(e)
-        c.status(401)
-        return c.json(returnJson(401, "Unauthorized: Invalid session token", null, null), 401)
+        console.error("[authUser] decode threw error:", e)
+        c.set("user", undefined)
+        await next()
     }
 }

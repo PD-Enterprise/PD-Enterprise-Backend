@@ -27,7 +27,7 @@ usersRouter.use("/new-user", authUser)
  * Returns: JSON
  */
 usersRouter.get("/roles/get-role", async (c) => {
-  const email = c.get("user").email;
+  const email = c.get("user")?.email;
   if (!email) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
@@ -85,27 +85,14 @@ usersRouter.get("/roles/get-role", async (c) => {
  * Returns: JSON
  */
 usersRouter.post("/new-user", async (c) => {
-  const body = await c.req.json();
-  const parsed = userObjectSchema.safeParse(body);
-  if (!parsed.success) {
-    console.error("Validation failed", parsed.error.issues);
-    c.status(400);
-    return c.json(returnJson(400, "Validation failed", null, null));
+  const user = c.get("user")
+  if (user === undefined) {
+    c.status(401)
+    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
   }
-  const data = parsed.data
-  const name = data.name;
-  const avatarUrl = data.picture;
-  const email = c.get("user").email;
-
-  if (!email || !name || !avatarUrl) {
-    c.status(400);
-    return c.json(returnJson(400, "Missing required fields", null, null));
-  }
-  if (!validator.isEmail(email)) {
-    console.log("Invalid email format");
-    c.status(400);
-    return c.json(returnJson(400, "Invalid email format", null, null));
-  }
+  const name = user.name;
+  const email = user.email;
+  const avatarUrl = user.picture;
 
   const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const db = createUsersDb(c.env.DATABASE_URL);
@@ -140,6 +127,7 @@ usersRouter.post("/new-user", async (c) => {
         ),
       );
     }
+    c.status(200);
     return c.json(returnJson(200, "User created successfully", userId, null));
   } catch (error) {
     console.error(error);
@@ -161,7 +149,7 @@ usersRouter.post("/new-user", async (c) => {
  * Returns: JSON
  */
 usersRouter.get("/academic-level", async (c) => {
-  const email = c.get("user").email;
+  const email = c.get("user")?.email;
   if (!email) {
     c.status(400);
     return c.json(returnJson(400, "Missing required fields", null, null));
@@ -211,7 +199,7 @@ usersRouter.get("/academic-level", async (c) => {
  */
 usersRouter.post("/academic-level", async (c) => {
   const body = await c.req.json();
-  const email = c.get("user").email;
+  const email = c.get("user")?.email;
   const academicLevel = body.academicLevel;
   if (!email || !academicLevel) {
     c.status(400);

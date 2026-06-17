@@ -69,7 +69,7 @@ newNoteRouter.post("/:type", async (c) => {
         content: note.content,
         dateCreated: note.dateCreated,
         dateUpdated: new Date().toISOString(),
-        userId: userId,
+        email: userId,
         topic: note.topic,
         type: type,
         visibility: note.visibility,

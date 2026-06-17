@@ -53,7 +53,7 @@ noteRouter.get("/:slug", async (c) => {
         topic: notes.topic,
         type: notes.type,
         visibility: notes.visibility,
-        email: notes.userId,
+        email: notes.email,
         academicLevel: academicLevel.academicLevel,
         year: notes.year,
         language: notes.language,
@@ -164,7 +164,7 @@ noteRouter.post("/:slug/update", async (c) => {
         language: note.language,
         keywords: note.keywords,
       })
-      .where(and(eq(notes.slug, slug), eq(notes.userId, userId)))
+      .where(and(eq(notes.slug, slug), eq(notes.email, userId)))
       .returning();
 
     if (!updated) {
@@ -228,7 +228,7 @@ noteRouter.delete("/:slug/delete", async (c) => {
   try {
     const deleted = await notesdb
       .delete(notes)
-      .where(and(eq(notes.slug, slug), eq(notes.userId, userId)))
+      .where(and(eq(notes.slug, slug), eq(notes.email, userId)))
       .returning({ id: notes.noteId });
 
     if (!deleted) {
