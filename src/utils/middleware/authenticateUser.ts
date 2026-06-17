@@ -6,15 +6,21 @@ import { AppVariables, Bindings, userObject } from "@/src/types";
 
 export const authUser: MiddlewareHandler<{ Bindings: Bindings, Variables: AppVariables }> = async (c, next) => {
     const sessionToken = getCookie(c, "authjs.session-token") || getCookie(c, "__Secure-authjs.session-token")
+    console.log(sessionToken)
     if (sessionToken == undefined) {
         c.set("user", undefined)
         await next()
     }
+    const salt = sessionToken
+        ? "__Secure-authjs.session-token"
+        : "authjs.session-token"
     try {
+        console.log(c.env.AUTH_SECRET)
+        console.log("length", c.env.AUTH_SECRET.length)
         const decoded = await decode({
             token: sessionToken,
             secret: c.env.AUTH_SECRET!,
-            salt: "authjs.session-token",
+            salt: salt,
         })
         if (!decoded?.email) {
             console.error("[authUser] no email in decoded token")
