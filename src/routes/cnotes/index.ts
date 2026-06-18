@@ -8,7 +8,9 @@ import { authUser } from "@/src/utils/middleware/authenticateUser";
 
 const cnotesRouter = new Hono();
 
-cnotesRouter.use("/*", authUser)
+cnotesRouter.use("/new-note", authUser)
+cnotesRouter.use("/notes", authUser)
+cnotesRouter.use("/folder", authUser)
 
 cnotesRouter.get("/", (c) => {
   c.status(200);

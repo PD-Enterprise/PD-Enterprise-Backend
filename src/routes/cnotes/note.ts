@@ -20,31 +20,27 @@ const noteRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
  */
 noteRouter.get("/:slug", async (c) => {
   const userObj = c.get("user")
-  if (userObj === undefined) {
-    c.status(401)
-    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
-  }
+  let email = userObj?.email ? userObj.email : "";
   const slug = c.req.param("slug");
-  const email = userObj.email;
-  if (!email) {
-    c.status(400);
-    return c.json(returnJson(400, "Missing required fields", null, null));
-  }
-  if (!validator.isEmail(email)) {
-    console.error("Invalid email format");
-    c.status(400);
-    return c.json(returnJson(400, "Invalid email format", null, null));
-  }
-
   const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
+  let userId;
 
-  const userId = await userExistsInNotesDB(notesdb, email);
-  if (!userId || userId instanceof Error) {
-    console.error(userId);
-    c.status(401);
-    return c.json(
-      returnJson(401, "Unauthorized: Email does not exist.", null, null),
-    );
+  if (email !== "") {
+    if (!validator.isEmail(email)) {
+      console.error("Invalid email format");
+      c.status(400);
+      return c.json(returnJson(400, "Invalid email format", null, null));
+    }
+
+
+    userId = await userExistsInNotesDB(notesdb, email);
+    if (!userId || userId instanceof Error) {
+      console.error(userId);
+      c.status(401);
+      return c.json(
+        returnJson(401, "Unauthorized: Email does not exist.", null, null),
+      );
+    }
   }
 
   try {
