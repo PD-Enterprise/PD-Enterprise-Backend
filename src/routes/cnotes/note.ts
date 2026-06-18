@@ -9,39 +9,19 @@ import { generateSlug } from "@/utils/generateSlug";
 import { AppVariables, Bindings } from "../../types";
 import validator from "validator";
 import { existingAcademicLevel } from "@/src/db/cnotes/utils/existingAcademicLevel";
+import { authUser } from "@/src/utils/middleware/authenticateUser";
 
 const noteRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
 
 /**
  * Get note
- * POST /cnotes/note/:slug
- * Requires: email, note
+ * GET /cnotes/note/:slug
+ * Public notes are free for anyone. Private notes require authentication.
  * Returns: JSON
  */
 noteRouter.get("/:slug", async (c) => {
-  const userObj = c.get("user")
-  let email = userObj?.email ? userObj.email : "";
   const slug = c.req.param("slug");
   const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
-  let userId;
-
-  if (email !== "") {
-    if (!validator.isEmail(email)) {
-      console.error("Invalid email format");
-      c.status(400);
-      return c.json(returnJson(400, "Invalid email format", null, null));
-    }
-
-
-    userId = await userExistsInNotesDB(notesdb, email);
-    if (!userId || userId instanceof Error) {
-      console.error(userId);
-      c.status(401);
-      return c.json(
-        returnJson(401, "Unauthorized: Email does not exist.", null, null),
-      );
-    }
-  }
 
   try {
     const note = await notesdb
@@ -70,7 +50,35 @@ noteRouter.get("/:slug", async (c) => {
       return c.json(returnJson(404, "Note not found.", null, null));
     }
 
-    if (note[0].visibility === "private" && note[0].email !== userId) {
+    if (note[0].visibility === "public") {
+      const { email: _email, ...safeNote } = note[0]
+      return c.json(returnJson(200, "Successfully found note", [safeNote], null));
+    }
+
+    const userObj = c.get("user")
+    const email = userObj?.email
+
+    if (!email) {
+      c.status(401);
+      return c.json(returnJson(401, "Unauthorized: Email is required to view this note.", null, null));
+    }
+
+    if (!validator.isEmail(email)) {
+      console.error("Invalid email format");
+      c.status(400);
+      return c.json(returnJson(400, "Invalid email format", null, null));
+    }
+
+    const userId = await userExistsInNotesDB(notesdb, email);
+    if (!userId || userId instanceof Error) {
+      console.error(userId);
+      c.status(401);
+      return c.json(
+        returnJson(401, "Unauthorized: Email does not exist.", null, null),
+      );
+    }
+
+    if (note[0].email !== userId) {
       c.status(403);
       return c.json(
         returnJson(
