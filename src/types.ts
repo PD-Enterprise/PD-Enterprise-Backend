@@ -5,6 +5,7 @@ export type Bindings = {
   DATABASE_URL: string;
   CNOTES_DB_URL: string;
   AUTH_SECRET: string;
+  INTERNAL_KEY: string;
 };
 
 export type functionReturnType = [

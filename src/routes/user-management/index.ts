@@ -84,6 +84,12 @@ usersRouter.get("/roles/get-role", async (c) => {
  * Returns: JSON
  */
 usersRouter.post("/new-user", async (c) => {
+  const auth = c.req.header("Authorization")
+  if (auth !== `Bearer ${c.env.INTERNAL_KEY}`) {
+    c.status(401);
+    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401);
+  }
+
   const body = await c.req.json();
   if (!body.email || !body.name || !body.image) {
     c.status(400);
