@@ -1,6 +1,5 @@
 import { MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
-import { returnJson } from "../returnJson";
 import { decode } from "@auth/core/jwt";
 import { AppVariables, Bindings, userObject } from "@/src/types";
 
