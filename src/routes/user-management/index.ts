@@ -18,7 +18,6 @@ const usersRouter = new Hono<{ Bindings: Bindings, Variables: AppVariables }>();
 // Middleware
 usersRouter.use("/roles/*", authUser)
 usersRouter.use("/academic-level", authUser)
-usersRouter.use("/new-user", authUser)
 
 /**
  * Get user role
@@ -85,14 +84,14 @@ usersRouter.get("/roles/get-role", async (c) => {
  * Returns: JSON
  */
 usersRouter.post("/new-user", async (c) => {
-  const user = c.get("user")
-  if (user === undefined) {
-    c.status(401)
-    return c.json(returnJson(401, "Unauthorized: No session token found", null, null), 401)
+  const body = await c.req.json();
+  if (!body.email || !body.name || !body.image) {
+    c.status(400);
+    return c.json(returnJson(400, "Missing required fields", null, null));
   }
-  const name = user.name;
-  const email = user.email;
-  const avatarUrl = user.picture;
+  const name = body.name;
+  const email = body.email;
+  const avatarUrl = body.image;
 
   const notesdb = createNotesDb(c.env.CNOTES_DB_URL);
   const db = createUsersDb(c.env.DATABASE_URL);
