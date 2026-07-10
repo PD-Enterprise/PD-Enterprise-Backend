@@ -1,5 +1,6 @@
 import { Context, Hono } from "hono";
 import { handleChat } from "./routes/chat-handler";
+import { handleCreateThread } from "./routes/create-thread";
 import { returnJson } from "../../utils/returnJson";
 import { modelList } from "./utils/modelList";
 import { Bindings } from "../../types";
@@ -7,8 +8,8 @@ import { authUser } from "@/src/utils/middleware/authenticateUser";
 
 const aiRouter = new Hono<{ Bindings: Bindings }>();
 
-
 aiRouter.use("/chat", authUser)
+aiRouter.use("/thread", authUser)
 
 aiRouter.get("/", (c) => {
   c.status(200);
@@ -35,6 +36,7 @@ aiRouter.get("/", (c) => {
  *   on error:      event: error\ndata: {"message":"..."}
  */
 aiRouter.post("/chat", handleChat);
+aiRouter.post("/thread", handleCreateThread);
 /**
  * Get model list
  * GET /grade-ai/get-model-list
