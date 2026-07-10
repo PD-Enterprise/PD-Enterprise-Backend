@@ -25,6 +25,13 @@ export const insertNewUser = mutation({
   },
 });
 
+export const getUserByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    return await isExistingUser(ctx, args.email);
+  },
+});
+
 export const getAcademicLevel = query({
   args: { email: v.string() },
   handler: async (ctx, args) => {
