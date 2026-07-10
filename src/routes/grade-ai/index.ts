@@ -1,6 +1,6 @@
 import { Context, Hono } from "hono";
 import { handleChat } from "./routes/chat-handler";
-import { handleCreateThread, handleDeleteThread } from "./routes/thread-handler";
+import { handleCreateThread, handleGetThreads, handleDeleteThread } from "./routes/thread-handler";
 import { returnJson } from "../../utils/returnJson";
 import { modelList } from "./utils/modelList";
 import { Bindings } from "../../types";
@@ -11,6 +11,7 @@ const aiRouter = new Hono<{ Bindings: Bindings }>();
 aiRouter.use("/chat", authUser)
 aiRouter.use("/thread", authUser)
 aiRouter.use("/thread/*", authUser)
+aiRouter.use("/threads", authUser)
 
 aiRouter.get("/", (c) => {
   c.status(200);
@@ -39,6 +40,7 @@ aiRouter.get("/", (c) => {
 aiRouter.post("/chat", handleChat);
 aiRouter.post("/thread", handleCreateThread);
 aiRouter.delete("/thread/:clientUUID", handleDeleteThread);
+aiRouter.get("/threads", handleGetThreads);
 /**
  * Get model list
  * GET /grade-ai/get-model-list

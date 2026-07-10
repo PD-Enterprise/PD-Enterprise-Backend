@@ -50,6 +50,39 @@ export async function handleCreateThread(c: Context): Promise<Response> {
   }
 }
 
+export async function handleGetThreads(c: Context): Promise<Response> {
+  const email = c.get("user")?.email;
+  if (!email) {
+    c.status(401);
+    return c.json(returnJson(401, "Unauthorized", null, null));
+  }
+
+  const convexClient = new ConvexClient(c.env.CONVEX_URL);
+
+  try {
+    const user = await convexClient.query(api.users.getUserByEmail, { email });
+    if (!user) {
+      c.status(404);
+      return c.json(returnJson(404, "User not found", null, null));
+    }
+
+    const conversations = await convexClient.query(
+      api.conversations.getConversationsByUser,
+      { userId: user._id },
+    );
+
+    return c.json(
+      returnJson(200, "Threads retrieved", conversations, null),
+    );
+  } catch (err: any) {
+    console.error("[getThreads] error:", err);
+    c.status(500);
+    return c.json(returnJson(500, "Failed to get threads", null, err.message));
+  } finally {
+    convexClient.close();
+  }
+}
+
 export async function handleDeleteThread(c: Context): Promise<Response> {
   const email = c.get("user")?.email;
   if (!email) {
