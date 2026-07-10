@@ -145,6 +145,8 @@ usersRouter.post("/new-user", async (c) => {
         null,
       ),
     );
+  } finally {
+    convexClient.close();
   }
 });
 /**
@@ -194,6 +196,8 @@ usersRouter.get("/academic-level", async (c) => {
         null,
       ),
     );
+  } finally {
+    convexClient.close();
   }
 });
 /**
@@ -253,6 +257,8 @@ usersRouter.post("/academic-level", async (c) => {
         null,
       ),
     );
+  } finally {
+    convexClient.close();
   }
 });
 

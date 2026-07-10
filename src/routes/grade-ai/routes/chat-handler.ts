@@ -27,9 +27,14 @@ export async function handleChat(c: Context): Promise<Response> {
   const inferenceProvider = resolveProvider(provider, c.env);
 
   const convexClient = new ConvexClient(c.env.CONVEX_URL);
-  const academicLevel = await convexClient.query(api.users.getAcademicLevel, {
-    email,
-  });
+  let academicLevel;
+  try {
+    academicLevel = await convexClient.query(api.users.getAcademicLevel, {
+      email,
+    });
+  } finally {
+    convexClient.close();
+  }
   if (!academicLevel) {
     c.status(404);
     return c.json(returnJson(404, "Academic level not found", null, academicLevel));
