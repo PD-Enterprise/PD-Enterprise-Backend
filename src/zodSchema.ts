@@ -32,6 +32,8 @@ export const chatRequestSchema = z.object({
     )
     .default([]),
   conversationId: z.string().min(1),
+  messageClientId: z.string().min(1),
+  assistantClientId: z.string().min(1),
 });
 
 export const userObjectSchema = z.object({

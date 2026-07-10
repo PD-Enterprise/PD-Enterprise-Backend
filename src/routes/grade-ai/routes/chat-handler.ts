@@ -21,7 +21,7 @@ export async function handleChat(c: Context): Promise<Response> {
     c.status(400);
     return c.json(returnJson(400, "Validation failed", null, null));
   }
-  const { prompt, provider, model, mode, history, conversationId: clientUUID } = parsed.data;
+  const { prompt, provider, model, mode, history, conversationId: clientUUID, messageClientId, assistantClientId } = parsed.data;
   const email = c.get("user").email;
 
   const inferenceProvider = resolveProvider(provider, c.env);
@@ -51,11 +51,21 @@ export async function handleChat(c: Context): Promise<Response> {
     return c.json(returnJson(404, "Conversation not found", null, null));
   }
 
+  let convexMessages: any[] = [];
+  try {
+    convexMessages = await convexClient.query(api.messages.getMessagesByConversation, { conversationId: conversation._id });
+  } catch (e) {
+    convexClient.close();
+    c.status(500);
+    return c.json(returnJson(500, "Failed to fetch messages", null, null));
+  }
+
   const messages = buildMessages(
     prompt,
     history as ChatMessage[],
     mode,
     academicLevel.academicLevel,
+    convexMessages,
   );
 
   const stream = new ReadableStream({
@@ -72,12 +82,14 @@ export async function handleChat(c: Context): Promise<Response> {
 
         await convexClient.mutation(api.messages.createMessage, {
           conversationId: conversation._id,
+          clientUUID: messageClientId,
           role: "user",
           content: prompt,
         });
 
         await convexClient.mutation(api.messages.createMessage, {
           conversationId: conversation._id,
+          clientUUID: assistantClientId,
           role: "assistant",
           content: fullResponse,
           model,

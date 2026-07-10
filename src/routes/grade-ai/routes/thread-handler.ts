@@ -83,6 +83,60 @@ export async function handleGetThreads(c: Context): Promise<Response> {
   }
 }
 
+export async function handleGetMessages(c: Context): Promise<Response> {
+  const email = c.get("user")?.email;
+  if (!email) {
+    c.status(401);
+    return c.json(returnJson(401, "Unauthorized", null, null));
+  }
+
+  const clientUUID = c.req.param("clientUUID");
+  if (!clientUUID) {
+    c.status(400);
+    return c.json(returnJson(400, "clientUUID is required", null, null));
+  }
+
+  const convexClient = new ConvexClient(c.env.CONVEX_URL);
+
+  try {
+    const user = await convexClient.query(api.users.getUserByEmail, { email });
+    if (!user) {
+      c.status(404);
+      return c.json(returnJson(404, "User not found", null, null));
+    }
+
+    const conversation = await convexClient.query(
+      api.conversations.getConversationByClientUUID,
+      { clientUUID },
+    );
+    if (!conversation) {
+      c.status(404);
+      return c.json(returnJson(404, "Thread not found", null, null));
+    }
+    if (conversation.userId !== user._id) {
+      c.status(403);
+      return c.json(returnJson(403, "Forbidden", null, null));
+    }
+
+    const messages = await convexClient.query(
+      api.messages.getMessagesByConversation,
+      { conversationId: conversation._id },
+    );
+
+    const sortedMessages = [...messages].sort((a: any, b: any) => a.createdAt - b.createdAt);
+
+    return c.json(
+      returnJson(200, "Messages retrieved", { messages: sortedMessages, conversation }, null),
+    );
+  } catch (err: any) {
+    console.error("[getMessages] error:", err);
+    c.status(500);
+    return c.json(returnJson(500, "Failed to get messages", null, err.message));
+  } finally {
+    convexClient.close();
+  }
+}
+
 export async function handleDeleteThread(c: Context): Promise<Response> {
   const email = c.get("user")?.email;
   if (!email) {

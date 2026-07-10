@@ -22,6 +22,7 @@ export default defineSchema({
 
   messages: defineTable({
     conversationId: v.id("conversations"),
+    clientUUID: v.string(),
     role: v.union(
       v.literal("user"),
       v.literal("assistant"),
