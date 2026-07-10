@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 export const createConversation = mutation({
   args: {
@@ -19,5 +19,37 @@ export const createConversation = mutation({
     });
 
     return conversationId;
+  },
+});
+
+export const getConversationByClientUUID = query({
+  args: { clientUUID: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("conversations")
+      .withIndex("by_clientUUID", (q) => q.eq("clientUUID", args.clientUUID))
+      .unique();
+  },
+});
+
+export const deleteConversation = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversationId", args.conversationId),
+      )
+      .collect();
+
+    for (const message of messages) {
+      await ctx.db.delete(message._id);
+    }
+
+    await ctx.db.delete(args.conversationId);
+
+    return args.conversationId;
   },
 });
