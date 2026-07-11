@@ -52,6 +52,21 @@ export async function handleCreateThread(c: Context): Promise<Response> {
       return c.json(returnJson(404, "User not found", null, null));
     }
 
+    const existing = await convexClient.query(
+      api.conversations.getConversationByClientUUID,
+      { clientUUID },
+    );
+
+    if (existing) {
+      return c.json(
+        returnJson(200, "Thread created", {
+          conversationId: existing._id,
+          clientUUID,
+          title: existing.title,
+        }, null),
+      );
+    }
+
     const title = await generateTitle(prompt, c.env.GROQ_API_KEY);
 
     const conversationId = await convexClient.mutation(
@@ -64,7 +79,7 @@ export async function handleCreateThread(c: Context): Promise<Response> {
     );
 
     return c.json(
-      returnJson(200, "Thread created", { conversationId, clientUUID, title }, null),
+      returnJson(201, "Thread created", { conversationId, clientUUID, title }, null),
     );
   } catch (err: any) {
     console.error("[createThread] error:", err);
