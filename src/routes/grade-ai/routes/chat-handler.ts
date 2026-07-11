@@ -74,14 +74,10 @@ export async function handleChat(c: Context): Promise<Response> {
       let fullResponse = "";
 
       try {
-        const chunk: StreamChunk = {
-          type: "delta",
-          delta: "hello"
-        };
-        // for await (const chunk of inferenceProvider.stream(messages, model)) {
-        fullResponse += chunk.delta || "";
-        controller.enqueue(encode(formatNDJSONChunk(chunk)));
-        // }
+        for await (const chunk of inferenceProvider.stream(messages, model)) {
+          fullResponse += chunk.delta || "";
+          controller.enqueue(encode(formatNDJSONChunk(chunk)));
+        }
         controller.enqueue(encode(formatNDJSONDone()));
 
         await convexClient.mutation(api.messages.createMessage, {
