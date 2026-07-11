@@ -8,6 +8,15 @@ export const createConversation = mutation({
     clientUUID: v.string(),
   },
   handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("conversations")
+      .withIndex("by_clientUUID", (q) => q.eq("clientUUID", args.clientUUID))
+      .unique();
+
+    if (existing) {
+      return existing._id;
+    }
+
     const now = Date.now();
 
     const conversationId = await ctx.db.insert("conversations", {
