@@ -1,7 +1,30 @@
 import { Context } from "hono";
 import { ConvexClient } from "convex/browser";
+import Groq from "groq-sdk";
 import { api } from "@/convex/_generated/api";
 import { returnJson } from "@/src/utils/returnJson";
+
+async function generateTitle(prompt: string, apiKey: string): Promise<string> {
+  const client = new Groq({ apiKey });
+  try {
+    const completion = await client.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Generate a concise title (5 words or fewer) for a conversation based on the user's first message. Return only the title, nothing else.",
+        },
+        { role: "user", content: prompt },
+      ],
+    });
+    const title = completion.choices[0]?.message?.content?.trim() || "";
+    return title || prompt.split(/\s+/).slice(0, 5).join(" ");
+  } catch (err) {
+    console.error("[generateTitle] error:", err);
+    return prompt.split(/\s+/).slice(0, 5).join(" ");
+  }
+}
 
 export async function handleCreateThread(c: Context): Promise<Response> {
   const email = c.get("user")?.email;
@@ -11,12 +34,12 @@ export async function handleCreateThread(c: Context): Promise<Response> {
   }
 
   const body = await c.req.json();
-  const { title, clientUUID } = body;
+  const { prompt, clientUUID } = body;
 
-  if (!title || !clientUUID) {
+  if (!prompt || !clientUUID) {
     c.status(400);
     return c.json(
-      returnJson(400, "title and clientUUID are required", null, null),
+      returnJson(400, "prompt and clientUUID are required", null, null),
     );
   }
 
@@ -29,6 +52,8 @@ export async function handleCreateThread(c: Context): Promise<Response> {
       return c.json(returnJson(404, "User not found", null, null));
     }
 
+    const title = await generateTitle(prompt, c.env.GROQ_API_KEY);
+
     const conversationId = await convexClient.mutation(
       api.conversations.createConversation,
       {
@@ -39,7 +64,7 @@ export async function handleCreateThread(c: Context): Promise<Response> {
     );
 
     return c.json(
-      returnJson(201, "Thread created", { conversationId, clientUUID, title }, null),
+      returnJson(200, "Thread created", { conversationId, clientUUID, title }, null),
     );
   } catch (err: any) {
     console.error("[createThread] error:", err);
