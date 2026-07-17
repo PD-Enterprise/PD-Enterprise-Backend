@@ -46,6 +46,21 @@ export const notes = pgTable("notes", {
 	}),
 ]);
 
+export const images = pgTable("images", {
+	imageId: serial("image_id").primaryKey().notNull(),
+	publicId: varchar("public_id", { length: 255 }),
+	url: varchar({ length: 255 }).notNull(),
+	userId: integer("user_id").notNull(),
+	dateCreated: date("date_created").notNull(),
+	dateUpdated: timestamp("date_updated", { mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	foreignKey({
+		columns: [table.userId],
+		foreignColumns: [user.id],
+		name: "user_id"
+	}),
+]);
+
 export const folders = pgTable("folders", {
 	folderId: serial("folder_id").primaryKey().notNull(),
 	title: varchar({ length: 255 }).notNull(),
