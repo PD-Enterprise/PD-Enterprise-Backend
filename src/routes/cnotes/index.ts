@@ -4,6 +4,7 @@ import newNoteRouter from "./new-note";
 import notesRouter from "./notes";
 import noteRouter from "./note";
 import folderRouter from "./folders"
+import { handleImageUpload } from "./image-upload-handler";
 import { authUser } from "@/src/utils/middleware/authenticateUser";
 
 const cnotesRouter = new Hono();
@@ -18,5 +19,6 @@ cnotesRouter.route("/new-note", newNoteRouter);
 cnotesRouter.route("/notes", notesRouter);
 cnotesRouter.route("/note", noteRouter);
 cnotesRouter.route("/folder", folderRouter)
+cnotesRouter.post("/upload-image", handleImageUpload);
 
 export default cnotesRouter;

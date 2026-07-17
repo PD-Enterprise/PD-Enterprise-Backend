@@ -6,6 +6,9 @@ export type Bindings = {
   CNOTES_DB_URL: string;
   AUTH_SECRET: string;
   INTERNAL_KEY: string;
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
 };
 
 export type functionReturnType = [
