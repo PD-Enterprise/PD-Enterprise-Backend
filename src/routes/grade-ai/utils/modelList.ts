@@ -22,19 +22,14 @@ export const modelList: ModelList[] = [
     providerName: "groq",
     modelName: "GPT OSS 120B",
     modelString: "openai/gpt-oss-120b",
-    description: "Best for advanced coding, analysis, and detailed conversations.",
+    description:
+      "Best for advanced coding, analysis, and detailed conversations.",
   },
   {
     providerName: "groq",
     modelName: "GPT OSS 20B",
     modelString: "openai/gpt-oss-20b",
     description: "Balanced speed and quality for coding and general use.",
-  },
-  {
-    providerName: "groq",
-    modelName: "Qwen3 32B",
-    modelString: "qwen/qwen3-32b",
-    description: "Great for coding, reasoning, and multilingual tasks.",
   },
   {
     providerName: "gemini",
@@ -58,6 +53,7 @@ export const modelList: ModelList[] = [
     providerName: "gemini",
     modelName: "Gemini 3.2 Flash",
     modelString: "gemini-3.5-flash",
-    description: "Powerful all-round model for coding, reasoning, and creative work.",
+    description:
+      "Powerful all-round model for coding, reasoning, and creative work.",
   },
 ];
