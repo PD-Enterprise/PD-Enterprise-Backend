@@ -8,6 +8,8 @@
     "@auth/core": "^0.34.3",
     "@google/genai": "^1.50.1",
     "@neondatabase/serverless": "^1.1.0",
+    "@sentry/cloudflare": "^10.69.0",
+    "@sentry/hono": "^10.69.0",
     "@types/pg": "^8.20.0",
     "better-auth": "^1.6.12",
     "cloudinary": "^2.10.0",
@@ -29,7 +31,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260426.1",
     "@eslint/js": "^10.0.1",
     "@types/bun": "latest",
     "@types/node": "^24.12.2",

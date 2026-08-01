@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { sentry } from "@sentry/hono/cloudflare";
 import { validateRoute } from "@/utils/validateRoute";
 import { returnJson } from "@/utils/returnJson";
 import { rateLimiter } from "@/utils/middleware/ratelimiter";
@@ -12,6 +13,17 @@ import notesRouter from "./routes/cnotes";
 import { Bindings } from "./types";
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+/*
+  Sentry
+*/
+app.use(
+  sentry(app, (env) => ({
+    dsn: env.SENTRY_DSN,
+    environment: env.ENVIRONMENT ?? "production",
+    tracesSampleRate: 1.0,
+  })),
+);
 
 /*
   Error Handling
