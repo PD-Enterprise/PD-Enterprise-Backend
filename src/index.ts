@@ -73,9 +73,4 @@ app.route("/pd-enterprise", pdEnterpriseRouter);
 app.route("/grade-ai", aiRouter);
 app.route("/cnotes", notesRouter);
 
-// Sentry test
-app.get("/test", (c) => {
-  throw new Error("Test error");
-})
-
 export default app;
