@@ -108,6 +108,7 @@ export async function handleChat(c: Context): Promise<Response> {
     async start(controller) {
       const encode = (str: string) => new TextEncoder().encode(str);
       let fullResponse = "";
+      let doneSent = false;
 
       try {
         for await (const chunk of inferenceProvider.stream(messages, model)) {
@@ -115,6 +116,7 @@ export async function handleChat(c: Context): Promise<Response> {
           controller.enqueue(encode(formatNDJSONChunk(chunk)));
         }
         controller.enqueue(encode(formatNDJSONDone()));
+        doneSent = true;
 
         await convexClient.mutation(api.messages.createMessage, {
           conversationId: conversation._id,
@@ -132,7 +134,11 @@ export async function handleChat(c: Context): Promise<Response> {
           provider,
         });
       } catch (err: any) {
-        controller.enqueue(encode(formatNDJSONError(err.message)));
+        if (doneSent) {
+          console.error("Failed to persist chat messages:", err);
+        } else {
+          controller.enqueue(encode(formatNDJSONError(err.message)));
+        }
       } finally {
         convexClient.close();
         controller.close();

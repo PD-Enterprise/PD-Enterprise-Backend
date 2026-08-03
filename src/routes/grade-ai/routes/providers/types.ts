@@ -15,9 +15,24 @@ export interface ChatRequestBody {
   conversationId: string;
 }
 
+export type StreamChunkType =
+  | "delta"
+  | "thinking"
+  | "tool"
+  | "usage"
+  | "done"
+  | "error";
+
+export interface ToolChunk {
+  name: string;
+  status: "executing" | "completed";
+}
+
 export interface StreamChunk {
-  type: "delta" | "usage" | "done" | "error";
+  type: StreamChunkType;
   delta?: string;
+  thinking?: string;
+  tool?: ToolChunk;
   usage?: {
     promptTokens: number;
     completionTokens: number;
