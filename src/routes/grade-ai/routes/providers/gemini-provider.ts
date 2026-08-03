@@ -28,32 +28,70 @@ export class GeminiProvider implements InferenceProvider {
       history,
       config: {
         systemInstruction: systemMessage?.content,
-      },
+        tools: [{ googleSearch: {} }],
+      }
     });
     const result = await chat.sendMessageStream({
       message: lastMessage.content,
     });
 
     let buffer = "";
+    let thinkingBuffer = "";
+    let toolNotified = false;
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
 
     for await (const chunk of result) {
-      const delta = chunk.text;
+      const parts = chunk.candidates?.[0]?.content?.parts ?? [];
 
-      if (delta) {
-        buffer += delta;
+      for (const part of parts) {
+        if (part.thought && part.text) {
+          thinkingBuffer += part.text;
 
-        if (buffer.length > 20) {
-          yield { type: "delta", delta: buffer };
-          buffer = "";
+          if (thinkingBuffer.length > 20) {
+            yield { type: "thinking", thinking: thinkingBuffer };
+            thinkingBuffer = "";
+          }
+        } else if (part.functionCall) {
+          if (!toolNotified) {
+            yield {
+              type: "tool",
+              tool: {
+                name: part.functionCall.name ?? "function_call",
+                status: "executing",
+              },
+            };
+            toolNotified = true;
+          }
+        } else if (part.text) {
+          buffer += part.text;
+
+          if (buffer.length > 20) {
+            yield { type: "delta", delta: buffer };
+            buffer = "";
+          }
         }
+      }
+
+      if (
+        !toolNotified &&
+        chunk.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length
+      ) {
+        yield {
+          type: "tool",
+          tool: { name: "google_search", status: "executing" },
+        };
+        toolNotified = true;
       }
 
       if (chunk.usageMetadata) {
         totalPromptTokens = chunk.usageMetadata.promptTokenCount ?? 0;
         totalCompletionTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
       }
+    }
+
+    if (thinkingBuffer.length > 0) {
+      yield { type: "thinking", thinking: thinkingBuffer };
     }
 
     if (buffer.length > 0) {

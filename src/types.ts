@@ -11,6 +11,7 @@ export type Bindings = {
   CLOUDINARY_API_SECRET: string;
   SENTRY_DSN: string;
   ENVIRONMENT?: string;
+  TAVILY_API_KEY: string;
 };
 
 export type functionReturnType = [
