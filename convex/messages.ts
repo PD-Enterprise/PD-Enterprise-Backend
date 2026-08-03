@@ -15,6 +15,35 @@ export const createMessage = mutation({
     provider: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversationId", args.conversationId),
+      )
+      .filter((q) => q.eq(q.field("clientUUID"), args.clientUUID))
+      .first();
+
+    if (existing) {
+      const updates: {
+        content: string;
+        model?: string;
+        provider?: string;
+        previousVersions?: string[];
+      } = {
+        content: args.content,
+        model: args.model,
+        provider: args.provider,
+      };
+      if (args.role === "assistant" && existing.content !== args.content) {
+        updates.previousVersions = [
+          ...(existing.previousVersions ?? []),
+          existing.content,
+        ];
+      }
+      await ctx.db.patch(existing._id, updates);
+      return existing._id;
+    }
+
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       clientUUID: args.clientUUID,

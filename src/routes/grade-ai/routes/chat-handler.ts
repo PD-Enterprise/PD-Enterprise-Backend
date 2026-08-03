@@ -14,14 +14,23 @@ import { buildMessages } from "../utils/buildMessage";
 import { returnJson } from "@/src/utils/returnJson";
 
 export async function handleChat(c: Context): Promise<Response> {
-  const body = await c.req.json()
+  const body = await c.req.json();
   const parsed = chatRequestSchema.safeParse(body);
   if (!parsed.success) {
     console.error("Validation failed", parsed.error.issues);
     c.status(400);
     return c.json(returnJson(400, "Validation failed", null, null));
   }
-  const { prompt, provider, model, mode, history, conversationId: clientUUID, messageClientId, assistantClientId } = parsed.data;
+  const {
+    prompt,
+    provider,
+    model,
+    mode,
+    history,
+    conversationId: clientUUID,
+    messageClientId,
+    assistantClientId,
+  } = parsed.data;
   const email = c.get("user").email;
 
   const inferenceProvider = resolveProvider(provider, c.env);
@@ -31,8 +40,13 @@ export async function handleChat(c: Context): Promise<Response> {
   let academicLevel;
   let conversation: any;
   try {
-    academicLevel = await convexClient.query(api.users.getAcademicLevel, { email });
-    conversation = await convexClient.query(api.conversations.getConversationByClientUUID, { clientUUID });
+    academicLevel = await convexClient.query(api.users.getAcademicLevel, {
+      email,
+    });
+    conversation = await convexClient.query(
+      api.conversations.getConversationByClientUUID,
+      { clientUUID },
+    );
   } catch (e) {
     convexClient.close();
     c.status(500);
@@ -42,7 +56,9 @@ export async function handleChat(c: Context): Promise<Response> {
   if (!academicLevel) {
     convexClient.close();
     c.status(404);
-    return c.json(returnJson(404, "Academic level not found", null, academicLevel));
+    return c.json(
+      returnJson(404, "Academic level not found", null, academicLevel),
+    );
   }
 
   if (!conversation) {
@@ -53,19 +69,39 @@ export async function handleChat(c: Context): Promise<Response> {
 
   let convexMessages: any[] = [];
   try {
-    convexMessages = await convexClient.query(api.messages.getMessagesByConversation, { conversationId: conversation._id });
+    convexMessages = await convexClient.query(
+      api.messages.getMessagesByConversation,
+      { conversationId: conversation._id },
+    );
   } catch (e) {
     convexClient.close();
     c.status(500);
     return c.json(returnJson(500, "Failed to fetch messages", null, null));
   }
 
+  // When resending, rebuild the context: drop the message pair being
+  // regenerated (and anything after it) so the model only sees the
+  // conversation up to the prompt being re-answered, not stale responses.
+  const sortedConvex = [...convexMessages].sort(
+    (a: any, b: any) => a.createdAt - b.createdAt,
+  );
+  let contextMessages = sortedConvex;
+  const resendIndex = sortedConvex.findIndex(
+    (m: any) => m.clientUUID === assistantClientId,
+  );
+  if (resendIndex !== -1) {
+    contextMessages = sortedConvex.slice(0, resendIndex);
+  }
+  contextMessages = contextMessages.filter(
+    (m: any) => m.clientUUID !== messageClientId,
+  );
+
   const messages = buildMessages(
     prompt,
     history as ChatMessage[],
     mode,
     academicLevel.academicLevel,
-    convexMessages,
+    contextMessages,
   );
 
   const stream = new ReadableStream({

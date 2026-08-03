@@ -31,6 +31,7 @@ export default defineSchema({
     content: v.string(),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
+    previousVersions: v.optional(v.array(v.string())),
     createdAt: v.number(),
   }).index("by_conversation", ["conversationId"]),
 
