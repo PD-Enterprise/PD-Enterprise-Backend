@@ -109,11 +109,19 @@ export async function handleChat(c: Context): Promise<Response> {
       const encode = (str: string) => new TextEncoder().encode(str);
       let fullResponse = "";
       let doneSent = false;
+      let errorSent = false;
 
       try {
         for await (const chunk of inferenceProvider.stream(messages, model)) {
           fullResponse += chunk.delta || "";
+          if (chunk.type === "error" && !chunk.recoverable) {
+            errorSent = true;
+          }
           controller.enqueue(encode(formatNDJSONChunk(chunk)));
+        }
+        if (errorSent) {
+          console.error("[chat] stream ended with an error chunk; skipping persist");
+          return;
         }
         controller.enqueue(encode(formatNDJSONDone()));
         doneSent = true;

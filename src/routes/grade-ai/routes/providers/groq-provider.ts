@@ -1,29 +1,14 @@
 import Groq from "groq-sdk";
-import type {
-  ChatCompletionMessageParam,
-  ChatCompletionTool,
-} from "groq-sdk/resources/chat/completions";
+import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
 import { ChatMessage, InferenceProvider, StreamChunk } from "./types";
-import webSearch from "../../utils/webSearch";
+import webSearch, {
+  WEB_SEARCH_TOOL,
+  WebSearchResult,
+  formatSearchResults,
+  parseQuery,
+} from "../../utils/webSearch";
 
-const WEB_SEARCH_TOOL: ChatCompletionTool = {
-  type: "function",
-  function: {
-    name: "web_search",
-    description:
-      "Search the web for current, factual, or verifiable information. Use it when the question depends on recent events, statistics, definitions, or specific facts you are unsure about.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The search query to look up on the web.",
-        },
-      },
-      required: ["query"],
-    },
-  },
-};
+const TOOL_USE_FAILED_CODE = "tool_use_failed";
 
 interface ToolCallAccumulator {
   index: number;
@@ -32,31 +17,19 @@ interface ToolCallAccumulator {
   arguments?: string;
 }
 
-interface SearchResult {
-  title: string;
-  url: string;
-  content: string;
+function isToolUseFailure(err: any): boolean {
+  return (
+    !!err &&
+    (err?.error?.code === TOOL_USE_FAILED_CODE ||
+      (typeof err?.message === "string" &&
+        err.message.includes("Failed to call a function")))
+  );
 }
 
-function formatSearchResults(results: SearchResult[]): string {
-  if (results.length === 0) {
-    return "No relevant web results were found for the query.";
-  }
-  return results
-    .map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.content}`)
-    .join("\n\n");
-}
-
-function parseQuery(argumentsString?: string): string | null {
-  if (!argumentsString) return null;
-  try {
-    const parsed = JSON.parse(argumentsString);
-    return typeof parsed.query === "string" && parsed.query.trim()
-      ? parsed.query
-      : null;
-  } catch {
-    return null;
-  }
+function errorMessage(err: any): string {
+  if (typeof err?.message === "string" && err.message.trim()) return err.message;
+  if (err instanceof Error && err.message) return err.message;
+  return "The model failed to generate a response. Please try again.";
 }
 
 export class GroqProvider implements InferenceProvider {
@@ -82,62 +55,104 @@ export class GroqProvider implements InferenceProvider {
 
     console.log("[groqProvider.stream] starting", { model, messageCount: params.length });
 
-    const firstResponse = await this.client.chat.completions.create({
-      model,
-      messages: params,
-      stream: true,
-      tools: [WEB_SEARCH_TOOL],
-    });
+    let firstResponse: any;
+    try {
+      firstResponse = await this.client.chat.completions.create({
+        model,
+        messages: params,
+        stream: true,
+        tools: [WEB_SEARCH_TOOL],
+        tool_choice: "auto",
+      });
+    } catch (err: any) {
+      console.error("[groqProvider.stream] failed to start tool completion", {
+        model,
+        error: err?.message,
+      });
+      yield { type: "error", message: errorMessage(err) };
+      return;
+    }
 
     const toolCalls: ToolCallAccumulator[] = [];
     let firstUsage: StreamChunk["usage"] | undefined;
     let textBuffer = "";
     let thinkingBuffer = "";
+    let toolCallFailed = false;
+    let toolCallError = "";
 
-    for await (const chunk of firstResponse) {
-      const delta = chunk.choices[0]?.delta;
+    try {
+      for await (const chunk of firstResponse) {
+        const delta = chunk.choices[0]?.delta;
 
-      if (delta?.tool_calls) {
-        for (const tc of delta.tool_calls) {
-          toolCalls[tc.index] = toolCalls[tc.index] ?? { index: tc.index };
-          if (tc.id) toolCalls[tc.index].id = tc.id;
-          if (tc.function?.name) toolCalls[tc.index].name = tc.function.name;
-          if (tc.function?.arguments) {
-            toolCalls[tc.index].arguments =
-              (toolCalls[tc.index].arguments ?? "") + tc.function.arguments;
+        if (delta?.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            toolCalls[tc.index] = toolCalls[tc.index] ?? { index: tc.index };
+            if (tc.id) toolCalls[tc.index].id = tc.id;
+            if (tc.function?.name) toolCalls[tc.index].name = tc.function.name;
+            if (tc.function?.arguments) {
+              toolCalls[tc.index].arguments =
+                (toolCalls[tc.index].arguments ?? "") + tc.function.arguments;
+            }
+          }
+          continue;
+        }
+
+        const reasoning = delta?.reasoning ?? (delta as any)?.reasoning_content;
+        if (reasoning) {
+          thinkingBuffer += reasoning;
+
+          if (thinkingBuffer.length > 20) {
+            yield { type: "thinking", thinking: thinkingBuffer };
+            thinkingBuffer = "";
           }
         }
-        continue;
-      }
 
-      const reasoning = delta?.reasoning ?? (delta as any)?.reasoning_content;
-      if (reasoning) {
-        thinkingBuffer += reasoning;
+        const content = delta?.content;
+        if (content) {
+          textBuffer += content;
 
-        if (thinkingBuffer.length > 20) {
-          yield { type: "thinking", thinking: thinkingBuffer };
-          thinkingBuffer = "";
+          if (textBuffer.length > 20) {
+            yield { type: "delta", delta: textBuffer };
+            textBuffer = "";
+          }
+        }
+
+        if (chunk.x_groq?.usage) {
+          const u = chunk.x_groq.usage;
+          firstUsage = {
+            promptTokens: u.prompt_tokens,
+            completionTokens: u.completion_tokens,
+            totalTokens: u.total_tokens,
+          };
         }
       }
-
-      const content = delta?.content;
-      if (content) {
-        textBuffer += content;
-
-        if (textBuffer.length > 20) {
-          yield { type: "delta", delta: textBuffer };
-          textBuffer = "";
-        }
+    } catch (err: any) {
+      if (isToolUseFailure(err)) {
+        toolCallFailed = true;
+        toolCallError = errorMessage(err);
+        console.error(
+          "[groqProvider.stream] Groq rejected the generated function call; retrying without tools",
+          {
+            model,
+            error: err?.message,
+            failedGeneration: err?.error?.failed_generation,
+          },
+        );
+      } else {
+        console.error("[groqProvider.stream] streaming error from Groq", {
+          model,
+          error: err?.message,
+        });
+        yield { type: "error", message: errorMessage(err) };
+        return;
       }
+    }
 
-      if (chunk.x_groq?.usage) {
-        const u = chunk.x_groq.usage;
-        firstUsage = {
-          promptTokens: u.prompt_tokens,
-          completionTokens: u.completion_tokens,
-          totalTokens: u.total_tokens,
-        };
-      }
+    if (toolCallFailed) {
+      yield { type: "tool", tool: { name: "web_search", status: "failed" } };
+      yield { type: "error", message: toolCallError, recoverable: true };
+      yield* this.streamPlain(params, model);
+      return;
     }
 
     if (thinkingBuffer.length > 0) {
@@ -191,7 +206,7 @@ export class GroqProvider implements InferenceProvider {
     for (const toolCall of actionableToolCalls) {
       const query = parseQuery(toolCall.arguments);
 
-      let results: SearchResult[] = [];
+      let results: WebSearchResult[] = [];
       if (query) {
         try {
           yield {
@@ -226,49 +241,145 @@ export class GroqProvider implements InferenceProvider {
       });
     }
 
-    const finalResponse = await this.client.chat.completions.create({
-      model,
-      messages: params,
-      stream: true,
-    });
+    let finalResponse: any;
+    try {
+      finalResponse = await this.client.chat.completions.create({
+        model,
+        messages: params,
+        stream: true,
+      });
+    } catch (err: any) {
+      console.error("[groqProvider.stream] failed to start final completion", {
+        model,
+        error: err?.message,
+      });
+      yield { type: "error", message: errorMessage(err) };
+      return;
+    }
 
     textBuffer = "";
     thinkingBuffer = "";
 
-    for await (const chunk of finalResponse) {
-      const delta = chunk.choices[0]?.delta;
+    try {
+      for await (const chunk of finalResponse) {
+        const delta = chunk.choices[0]?.delta;
 
-      const reasoning = delta?.reasoning ?? (delta as any)?.reasoning_content;
-      if (reasoning) {
-        thinkingBuffer += reasoning;
+        const reasoning = delta?.reasoning ?? (delta as any)?.reasoning_content;
+        if (reasoning) {
+          thinkingBuffer += reasoning;
 
-        if (thinkingBuffer.length > 20) {
-          yield { type: "thinking", thinking: thinkingBuffer };
-          thinkingBuffer = "";
+          if (thinkingBuffer.length > 20) {
+            yield { type: "thinking", thinking: thinkingBuffer };
+            thinkingBuffer = "";
+          }
+        }
+
+        const content = delta?.content;
+        if (content) {
+          textBuffer += content;
+
+          if (textBuffer.length > 20) {
+            yield { type: "delta", delta: textBuffer };
+            textBuffer = "";
+          }
+        }
+
+        if (chunk.x_groq?.usage) {
+          const u = chunk.x_groq.usage;
+          yield {
+            type: "usage",
+            usage: {
+              promptTokens: u.prompt_tokens,
+              completionTokens: u.completion_tokens,
+              totalTokens: u.total_tokens,
+            },
+          };
         }
       }
+    } catch (err: any) {
+      console.error("[groqProvider.stream] final completion failed", {
+        model,
+        error: err?.message,
+      });
+      yield { type: "error", message: errorMessage(err) };
+      return;
+    }
 
-      const content = delta?.content;
-      if (content) {
-        textBuffer += content;
+    if (thinkingBuffer.length > 0) {
+      yield { type: "thinking", thinking: thinkingBuffer };
+    }
 
-        if (textBuffer.length > 20) {
-          yield { type: "delta", delta: textBuffer };
-          textBuffer = "";
+    if (textBuffer.length > 0) {
+      yield { type: "delta", delta: textBuffer };
+    }
+  }
+
+  private async *streamPlain(
+    params: ChatCompletionMessageParam[],
+    model: string,
+  ): AsyncIterable<StreamChunk> {
+    let response: any;
+    try {
+      response = await this.client.chat.completions.create({
+        model,
+        messages: params,
+        stream: true,
+      });
+    } catch (err: any) {
+      console.error("[groqProvider.stream] fallback completion failed to start", {
+        model,
+        error: err?.message,
+      });
+      yield { type: "error", message: errorMessage(err) };
+      return;
+    }
+
+    let textBuffer = "";
+    let thinkingBuffer = "";
+
+    try {
+      for await (const chunk of response) {
+        const delta = chunk.choices[0]?.delta;
+
+        const reasoning = delta?.reasoning ?? (delta as any)?.reasoning_content;
+        if (reasoning) {
+          thinkingBuffer += reasoning;
+
+          if (thinkingBuffer.length > 20) {
+            yield { type: "thinking", thinking: thinkingBuffer };
+            thinkingBuffer = "";
+          }
+        }
+
+        const content = delta?.content;
+        if (content) {
+          textBuffer += content;
+
+          if (textBuffer.length > 20) {
+            yield { type: "delta", delta: textBuffer };
+            textBuffer = "";
+          }
+        }
+
+        if (chunk.x_groq?.usage) {
+          const u = chunk.x_groq.usage;
+          yield {
+            type: "usage",
+            usage: {
+              promptTokens: u.prompt_tokens,
+              completionTokens: u.completion_tokens,
+              totalTokens: u.total_tokens,
+            },
+          };
         }
       }
-
-      if (chunk.x_groq?.usage) {
-        const u = chunk.x_groq.usage;
-        yield {
-          type: "usage",
-          usage: {
-            promptTokens: u.prompt_tokens,
-            completionTokens: u.completion_tokens,
-            totalTokens: u.total_tokens,
-          },
-        };
-      }
+    } catch (err: any) {
+      console.error("[groqProvider.stream] fallback completion failed", {
+        model,
+        error: err?.message,
+      });
+      yield { type: "error", message: errorMessage(err) };
+      return;
     }
 
     if (thinkingBuffer.length > 0) {

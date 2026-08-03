@@ -25,7 +25,7 @@ export type StreamChunkType =
 
 export interface ToolChunk {
   name: string;
-  status: "executing" | "completed";
+  status: "executing" | "completed" | "failed";
 }
 
 export interface StreamChunk {
@@ -38,6 +38,8 @@ export interface StreamChunk {
     completionTokens: number;
     totalTokens: number;
   };
+  message?: string;
+  recoverable?: boolean;
 }
 
 export interface InferenceProvider {
