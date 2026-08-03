@@ -1,9 +1,17 @@
-import { tavily } from "@tavily/core";
+const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 
 export interface WebSearchResult {
   title: string;
   url: string;
   content: string;
+}
+
+interface TavilySearchResponse {
+  results?: Array<{
+    title?: string;
+    url?: string;
+    content?: string;
+  }>;
 }
 
 export default async function webSearch(
@@ -15,15 +23,28 @@ export default async function webSearch(
     throw new Error("The TAVILY_API_KEY is missing or empty.");
   }
 
-  const client = tavily({ apiKey });
-  const response = await client.search(query, {
-    searchDepth: "basic",
-    maxResults,
+  const response = await fetch(TAVILY_SEARCH_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: apiKey,
+      query,
+      search_depth: "basic",
+      max_results: maxResults,
+    }),
   });
 
-  return response.results.map(({ title, url, content }) => ({
-    title,
-    url,
-    content,
+  if (!response.ok) {
+    throw new Error(
+      `Tavily search request failed with status ${response.status}: ${await response.text()}`,
+    );
+  }
+
+  const data = (await response.json()) as TavilySearchResponse;
+
+  return (data.results ?? []).map(({ title, url, content }) => ({
+    title: title ?? "",
+    url: url ?? "",
+    content: content ?? "",
   }));
 }
