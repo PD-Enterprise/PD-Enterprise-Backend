@@ -4,13 +4,14 @@ import { sentry } from "@sentry/hono/cloudflare";
 import { validateRoute } from "@/utils/validateRoute";
 import { returnJson } from "@/utils/returnJson";
 import { rateLimiter } from "@/utils/middleware/ratelimiter";
+import { Bindings } from "./types";
 
 import root from "./routes";
 import usersRouter from "./routes/user-management";
 import pdEnterpriseRouter from "./routes/pd-enterprise";
 import aiRouter from "./routes/grade-ai";
 import notesRouter from "./routes/cnotes";
-import { Bindings } from "./types";
+import ocrRouter from "./routes/beav-ocr";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -61,8 +62,9 @@ app.use("/", rateLimiter());
 app.use("/pd-enterprise/blog/posts", rateLimiter());
 app.use("/pd-enterprise/blog/posts/:slug", rateLimiter());
 app.use("/note/:slug", rateLimiter());
-app.use("/grade-ai/chat/", rateLimiter(15));
-app.use("*", rateLimiter(60));
+app.use("/grade-ai/chat/", rateLimiter());
+app.use("/beav-ocr/*", rateLimiter(5));
+app.use("*", rateLimiter(30));
 
 /*
   Routes
@@ -72,5 +74,6 @@ app.route("/users", usersRouter);
 app.route("/pd-enterprise", pdEnterpriseRouter);
 app.route("/grade-ai", aiRouter);
 app.route("/cnotes", notesRouter);
+app.route("/beav-ocr", ocrRouter)
 
 export default app;
