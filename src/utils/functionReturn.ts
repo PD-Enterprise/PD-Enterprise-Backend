@@ -7,5 +7,5 @@ export function functionReturn(
   data: any = null,
   error: any = null,
 ): functionReturnType {
-  return [successState, errorState, message, data, error];
+  return { successState, errorState, message, data, error };
 }

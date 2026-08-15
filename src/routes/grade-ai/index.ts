@@ -1,4 +1,4 @@
-import { Context, Hono } from "hono";
+import { Hono } from "hono";
 import { handleChat } from "./routes/chat-handler";
 import { handleCreateThread, handleGetThreads, handleGetMessages, handleDeleteThread } from "./routes/thread-handler";
 import { returnJson } from "../../utils/returnJson";

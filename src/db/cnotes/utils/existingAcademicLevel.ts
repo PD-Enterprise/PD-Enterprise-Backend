@@ -1,5 +1,4 @@
 import { academicLevel } from "@/drizzle/cnotes/schema";
-import { functionReturn } from "@/utils/functionReturn";
 import { eq } from "drizzle-orm";
 import { NeonHttpDatabase } from "drizzle-orm/neon-http";
 

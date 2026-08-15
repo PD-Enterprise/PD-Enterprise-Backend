@@ -12,15 +12,16 @@ export type Bindings = {
   SENTRY_DSN: string;
   ENVIRONMENT?: string;
   TAVILY_API_KEY: string;
+  GEMINI_OCR_API_KEY: string;
 };
 
-export type functionReturnType = [
+export type functionReturnType = {
   successState: boolean,
   errorState: boolean,
   message?: string,
   data?: any,
   error?: string,
-];
+};
 
 export type userObject = {
   name: string;

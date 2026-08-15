@@ -5,7 +5,7 @@ import {
   formatNDJSONChunk,
   formatNDJSONDone,
   formatNDJSONError,
-} from "../utils/stream-utils";
+} from "@/src/utils/stream-utils";
 import { resolveProvider } from "./providers/provider-factory";
 import { ConvexClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";

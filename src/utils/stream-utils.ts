@@ -1,4 +1,4 @@
-import type { StreamChunk } from "../routes/providers/types";
+import type { StreamChunk } from "@/src/routes/grade-ai/routes/providers/types";
 
 export function formatNDJSONChunk(chunk: StreamChunk): string {
   return JSON.stringify(chunk) + "\n";
