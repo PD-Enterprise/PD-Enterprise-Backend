@@ -14,7 +14,7 @@ const ocrRouter = new Hono<{ Bindings: Bindings }>();
 
 ocrRouter.post("/upload",
     bodyLimit({
-        maxSize: 20 * 1024 * 1024, // 9 MB
+        maxSize: 20 * 1024 * 1024, // 20 MB
         onError: (c) => {
             return c.json(returnJson(413, "File must be below 20MB.", null, "File too large."))
         }
