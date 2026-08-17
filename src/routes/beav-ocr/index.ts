@@ -4,28 +4,33 @@ import { returnJson } from "@/src/utils/returnJson";
 import { bodyLimit } from "hono/body-limit";
 import { generateOCR } from "./utils/OCR";
 import {
-  NDJSON_HEADERS,
-  formatNDJSONChunk,
-  formatNDJSONDone,
-  formatNDJSONError,
+    NDJSON_HEADERS,
+    formatNDJSONChunk,
+    formatNDJSONDone,
+    formatNDJSONError,
 } from "@/src/utils/stream-utils";
 
 const ocrRouter = new Hono<{ Bindings: Bindings }>();
 
 ocrRouter.post("/upload",
     bodyLimit({
-        maxSize: 9 * 1024 * 1024, // 9 MB
+        maxSize: 20 * 1024 * 1024, // 9 MB
         onError: (c) => {
-            return c.json(returnJson(413, "File must be below 9MB.", null, "File too large."))
+            return c.json(returnJson(413, "File must be below 20MB.", null, "File too large."))
         }
     }),
     async (c) => {
         const body = await c.req.parseBody();
         const file = body['file'];
+        const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 
         if (!(file instanceof File)) {
             c.status(400);
             return c.json(returnJson(400, "Input is not a file.", null, "File not found."));
+        }
+        if (!allowedTypes.includes(file.type)) {
+            c.status(400);
+            return c.json(returnJson(400, "Only JPEG, PNG, and WebP files are allowed.", null, "Invalid file type."));
         }
 
         const stream = new ReadableStream({
