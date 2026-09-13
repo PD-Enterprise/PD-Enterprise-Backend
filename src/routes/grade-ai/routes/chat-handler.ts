@@ -12,6 +12,7 @@ import { api } from "@/convex/_generated/api";
 import { chatRequestSchema } from "@/src/zodSchema";
 import { buildMessages } from "../utils/buildMessage";
 import { returnJson } from "@/src/utils/returnJson";
+import { toUserFacingError } from "@/src/utils/sanitizeError";
 
 export async function handleChat(c: Context): Promise<Response> {
   const body = await c.req.json();
@@ -57,7 +58,7 @@ export async function handleChat(c: Context): Promise<Response> {
     convexClient.close();
     c.status(404);
     return c.json(
-      returnJson(404, "Academic level not found", null, academicLevel),
+      returnJson(404, "Academic level not found", null, null),
     );
   }
 
@@ -145,7 +146,10 @@ export async function handleChat(c: Context): Promise<Response> {
         if (doneSent) {
           console.error("Failed to persist chat messages:", err);
         } else {
-          controller.enqueue(encode(formatNDJSONError(err.message)));
+          console.error("[chat] stream failed:", err?.message ?? err);
+          controller.enqueue(
+            encode(formatNDJSONError(toUserFacingError(err, "inference"))),
+          );
         }
       } finally {
         convexClient.close();

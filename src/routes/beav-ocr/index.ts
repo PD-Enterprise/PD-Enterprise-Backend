@@ -9,6 +9,7 @@ import {
     formatNDJSONDone,
     formatNDJSONError,
 } from "@/src/utils/stream-utils";
+import { toUserFacingError } from "@/src/utils/sanitizeError";
 
 const ocrRouter = new Hono<{ Bindings: Bindings }>();
 
@@ -43,7 +44,10 @@ ocrRouter.post("/upload",
                     }
                     controller.enqueue(encode(formatNDJSONDone()));
                 } catch (err: any) {
-                    controller.enqueue(encode(formatNDJSONError(err.message)));
+                    console.error("[beav-ocr] OCR stream failed:", err?.message ?? err);
+                    controller.enqueue(
+                        encode(formatNDJSONError(toUserFacingError(err, "ocr"))),
+                    );
                 } finally {
                     controller.close();
                 }

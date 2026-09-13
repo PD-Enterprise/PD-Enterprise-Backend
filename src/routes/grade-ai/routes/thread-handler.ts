@@ -84,7 +84,7 @@ export async function handleCreateThread(c: Context): Promise<Response> {
   } catch (err: any) {
     console.error("[createThread] error:", err);
     c.status(500);
-    return c.json(returnJson(500, "Failed to create thread", null, err.message));
+    return c.json(returnJson(500, "Failed to create thread", null, null));
   } finally {
     convexClient.close();
   }
@@ -117,7 +117,7 @@ export async function handleGetThreads(c: Context): Promise<Response> {
   } catch (err: any) {
     console.error("[getThreads] error:", err);
     c.status(500);
-    return c.json(returnJson(500, "Failed to get threads", null, err.message));
+    return c.json(returnJson(500, "Failed to get threads", null, null));
   } finally {
     convexClient.close();
   }
@@ -171,7 +171,7 @@ export async function handleGetMessages(c: Context): Promise<Response> {
   } catch (err: any) {
     console.error("[getMessages] error:", err);
     c.status(500);
-    return c.json(returnJson(500, "Failed to get messages", null, err.message));
+    return c.json(returnJson(500, "Failed to get messages", null, null));
   } finally {
     convexClient.close();
   }
@@ -222,7 +222,7 @@ export async function handleDeleteThread(c: Context): Promise<Response> {
   } catch (err: any) {
     console.error("[deleteThread] error:", err);
     c.status(500);
-    return c.json(returnJson(500, "Failed to delete thread", null, err.message));
+    return c.json(returnJson(500, "Failed to delete thread", null, null));
   } finally {
     convexClient.close();
   }

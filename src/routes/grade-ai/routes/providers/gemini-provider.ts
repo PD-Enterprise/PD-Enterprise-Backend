@@ -1,5 +1,6 @@
 import { Content, GoogleGenAI } from "@google/genai";
 import { ChatMessage, InferenceProvider, StreamChunk } from "./types";
+import { toUserFacingError } from "@/src/utils/sanitizeError";
 
 export class GeminiProvider implements InferenceProvider {
   private client: GoogleGenAI;
@@ -21,73 +22,127 @@ export class GeminiProvider implements InferenceProvider {
     }));
 
     const lastMessage = conversationMessages.at(-1);
-    if (!lastMessage) return;
+    if (!lastMessage) {
+      yield {
+        type: "error",
+        message: "No message to respond to. Please send a message and try again.",
+      };
+      return;
+    }
 
-    const chat = this.client.chats.create({
-      model,
-      history,
-      config: {
-        systemInstruction: systemMessage?.content,
-        tools: [{ googleSearch: {} }],
-      }
-    });
-    const result = await chat.sendMessageStream({
-      message: lastMessage.content,
-    });
+    let chat: any;
+    try {
+      chat = this.client.chats.create({
+        model,
+        history,
+        config: {
+          systemInstruction: systemMessage?.content,
+          tools: [{ googleSearch: {} }],
+        },
+      });
+    } catch (err) {
+      console.error("[geminiProvider.stream] failed to create chat", {
+        model,
+        error: (err as any)?.message ?? err,
+      });
+      yield { type: "error", message: toUserFacingError(err, "inference") };
+      return;
+    }
+
+    let result: AsyncIterable<any>;
+    try {
+      result = await chat.sendMessageStream({
+        message: lastMessage.content,
+      });
+    } catch (err) {
+      console.error("[geminiProvider.stream] failed to start stream", {
+        model,
+        error: (err as any)?.message ?? err,
+      });
+      yield { type: "error", message: toUserFacingError(err, "inference") };
+      return;
+    }
 
     let buffer = "";
     let thinkingBuffer = "";
     let toolNotified = false;
+    let toolName = "google_search";
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
 
-    for await (const chunk of result) {
-      const parts = chunk.candidates?.[0]?.content?.parts ?? [];
+    try {
+      for await (const chunk of result) {
+        const parts = chunk.candidates?.[0]?.content?.parts ?? [];
 
-      for (const part of parts) {
-        if (part.thought && part.text) {
-          thinkingBuffer += part.text;
+        for (const part of parts) {
+          if (part.thought && part.text) {
+            thinkingBuffer += part.text;
 
-          if (thinkingBuffer.length > 20) {
-            yield { type: "thinking", thinking: thinkingBuffer };
-            thinkingBuffer = "";
-          }
-        } else if (part.functionCall) {
-          if (!toolNotified) {
-            yield {
-              type: "tool",
-              tool: {
-                name: part.functionCall.name ?? "function_call",
-                status: "executing",
-              },
-            };
-            toolNotified = true;
-          }
-        } else if (part.text) {
-          buffer += part.text;
+            if (thinkingBuffer.length > 20) {
+              yield { type: "thinking", thinking: thinkingBuffer };
+              thinkingBuffer = "";
+            }
+          } else if (part.functionCall) {
+            toolName = part.functionCall.name ?? "function_call";
+            if (!toolNotified) {
+              yield {
+                type: "tool",
+                tool: {
+                  name: toolName,
+                  status: "executing",
+                },
+              };
+              toolNotified = true;
+            }
+          } else if (part.text) {
+            buffer += part.text;
 
-          if (buffer.length > 20) {
-            yield { type: "delta", delta: buffer };
-            buffer = "";
+            if (buffer.length > 20) {
+              yield { type: "delta", delta: buffer };
+              buffer = "";
+            }
           }
         }
-      }
 
-      if (
-        !toolNotified &&
-        chunk.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length
-      ) {
+        if (
+          !toolNotified &&
+          chunk.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length
+        ) {
+          yield {
+            type: "tool",
+            tool: { name: "google_search", status: "executing" },
+          };
+          toolNotified = true;
+        }
+
+        if (chunk.usageMetadata) {
+          totalPromptTokens = chunk.usageMetadata.promptTokenCount ?? 0;
+          totalCompletionTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
+        }
+      }
+    } catch (err) {
+      console.error("[geminiProvider.stream] streaming failed", {
+        model,
+        error: (err as any)?.message ?? err,
+      });
+      if (toolNotified) {
         yield {
           type: "tool",
-          tool: { name: "google_search", status: "executing" },
+          tool: { name: toolName, status: "failed" },
         };
-        toolNotified = true;
       }
+      yield {
+        type: "error",
+        message: toUserFacingError(err, toolNotified ? "tool" : "inference"),
+      };
+      return;
+    }
 
-      if (chunk.usageMetadata) {
-        totalPromptTokens = chunk.usageMetadata.promptTokenCount ?? 0;
-        totalCompletionTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
-      }
+    if (toolNotified) {
+      yield {
+        type: "tool",
+        tool: { name: toolName, status: "completed" },
+      };
     }
 
     if (thinkingBuffer.length > 0) {

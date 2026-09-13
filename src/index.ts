@@ -36,7 +36,7 @@ app.notFound((c) => {
 app.onError((err, c) => {
   console.error(err);
   c.status(500);
-  return c.json(returnJson(500, "Internal Server Error", null, err));
+  return c.json(returnJson(500, "Internal Server Error", null, null));
 });
 
 /*

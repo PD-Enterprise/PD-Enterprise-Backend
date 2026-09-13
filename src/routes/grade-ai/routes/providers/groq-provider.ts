@@ -3,10 +3,16 @@ import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/complet
 import { ChatMessage, InferenceProvider, StreamChunk } from "./types";
 import webSearch, {
   WEB_SEARCH_TOOL,
+  WebSearchImage,
   WebSearchResult,
   formatSearchResults,
   parseQuery,
 } from "../../utils/webSearch";
+import {
+  toUserFacingError,
+  webSearchUnavailableMessage,
+  webSearchUnparseableMessage,
+} from "@/src/utils/sanitizeError";
 
 const TOOL_USE_FAILED_CODE = "tool_use_failed";
 
@@ -27,9 +33,13 @@ function isToolUseFailure(err: any): boolean {
 }
 
 function errorMessage(err: any): string {
-  if (typeof err?.message === "string" && err.message.trim()) return err.message;
-  if (err instanceof Error && err.message) return err.message;
-  return "The model failed to generate a response. Please try again.";
+  // Never forward raw provider errors (may contain keys, URLs, payloads).
+  // Log raw server-side where the call site logs, return a safe message.
+  return toUserFacingError(err, "inference");
+}
+
+function toolErrorMessage(err: any): string {
+  return toUserFacingError(err, "web_search");
 }
 
 export class GroqProvider implements InferenceProvider {
@@ -207,36 +217,71 @@ export class GroqProvider implements InferenceProvider {
       const query = parseQuery(toolCall.arguments);
 
       let results: WebSearchResult[] = [];
+      let images: WebSearchImage[] = [];
       if (query) {
         try {
           yield {
             type: "tool",
             tool: { name: "web_search", status: "executing" },
           };
-          results = await webSearch(query, this.tavilyApiKey);
+          const search = await webSearch(query, this.tavilyApiKey);
+          results = search.results;
+          images = search.images;
           console.log("[groqProvider.stream] web search completed", {
             query,
             resultCount: results.length,
+            imageCount: images.length,
           });
+          yield {
+            type: "tool",
+            tool: { name: "web_search", status: "completed" },
+          };
         } catch (err: any) {
           console.error("[groqProvider.stream] web search failed:", err);
+          yield {
+            type: "tool",
+            tool: { name: "web_search", status: "failed" },
+          };
+          yield {
+            type: "error",
+            message: toolErrorMessage(err) || webSearchUnavailableMessage(),
+            recoverable: true,
+          };
+          params.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content:
+              "Web search is temporarily unavailable. Answer from your own knowledge and note that the information may not be current.",
+          });
+          continue;
         }
       } else {
         console.warn("[groqProvider.stream] unparseable tool call arguments", {
           arguments: toolCall.arguments,
         });
+        yield {
+          type: "tool",
+          tool: { name: "web_search", status: "failed" },
+        };
+        yield {
+          type: "error",
+          message: webSearchUnparseableMessage(),
+          recoverable: true,
+        };
+        params.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content:
+            "No valid search query was found. Summarize what you know and ask the user to clarify.",
+        });
+        continue;
       }
-
-      yield {
-        type: "tool",
-        tool: { name: "web_search", status: "completed" },
-      };
 
       params.push({
         role: "tool",
         tool_call_id: toolCall.id,
         content: query
-          ? formatSearchResults(results)
+          ? formatSearchResults(results, images)
           : "No valid search query was found. Summarize what you know and ask the user to clarify.",
       });
     }
