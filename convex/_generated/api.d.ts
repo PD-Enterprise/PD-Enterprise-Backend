@@ -9,6 +9,7 @@
  */
 
 import type * as conversations from "../conversations.js";
+import type * as llmUsage from "../llmUsage.js";
 import type * as messages from "../messages.js";
 import type * as users from "../users.js";
 import type * as utils_isExistingUser from "../utils/isExistingUser.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   conversations: typeof conversations;
+  llmUsage: typeof llmUsage;
   messages: typeof messages;
   users: typeof users;
   "utils/isExistingUser": typeof utils_isExistingUser;

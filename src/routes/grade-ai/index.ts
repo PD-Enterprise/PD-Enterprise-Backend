@@ -5,14 +5,17 @@ import { returnJson } from "../../utils/returnJson";
 import { modelList } from "./utils/modelList";
 import { Bindings } from "../../types";
 import { authUser } from "@/src/utils/middleware/authenticateUser";
+import { userRateLimiter } from "@/src/utils/middleware/ratelimiter";
 
 const aiRouter = new Hono<{ Bindings: Bindings }>();
 
-aiRouter.use("/chat", authUser)
-aiRouter.use("/thread", authUser)
-aiRouter.use("/thread/*", authUser)
-aiRouter.use("/threads", authUser)
-aiRouter.use("/messages/*", authUser)
+// Per-user limits (keyed by email after auth; survive IP rotation).
+// Coarse per-IP shield also runs globally in src/index.ts.
+aiRouter.use("/chat", authUser, userRateLimiter(30));
+aiRouter.use("/thread", authUser, userRateLimiter(20));
+aiRouter.use("/thread/*", authUser, userRateLimiter(20));
+aiRouter.use("/threads", authUser, userRateLimiter(30));
+aiRouter.use("/messages/*", authUser, userRateLimiter(30));
 
 aiRouter.get("/", (c) => {
   c.status(200);

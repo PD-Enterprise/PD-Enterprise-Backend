@@ -30,5 +30,10 @@ export const modelList: ModelList[] = [
     modelName: "Gemini 2.5 Flash Lite",
     modelString: "gemini-2.5-flash-lite",
     description: "Balanced speed and quality for coding and general use.",
-  }
+  },
 ];
+
+/** modelString -> provider allowlist. Single source of truth for validation. */
+export const ALLOWED_CHAT_MODELS = new Map(
+  modelList.map((m) => [m.modelString, m.providerName]),
+);

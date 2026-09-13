@@ -1,6 +1,7 @@
 import { GeminiProvider } from "./gemini-provider";
 import { GroqProvider } from "./groq-provider";
 import { ChatRequestBody, InferenceProvider } from "./types";
+import { ALLOWED_CHAT_MODELS } from "../../utils/modelList";
 
 type ProviderName = ChatRequestBody["provider"];
 
@@ -13,7 +14,21 @@ interface ProviderEnv {
 export function resolveProvider(
   provider: ProviderName,
   env: ProviderEnv,
+  model?: string,
 ): InferenceProvider {
+  // Defense-in-depth: even if request validation is bypassed, never let a
+  // caller pick an arbitrary model string (cost / capability escalation).
+  if (model !== undefined) {
+    const expected = ALLOWED_CHAT_MODELS.get(model);
+    if (!expected) {
+      throw new Error(`Unsupported model: ${model}`);
+    }
+    if (expected !== provider) {
+      throw new Error(
+        `Model ${model} requires provider "${expected}" (got "${provider}")`,
+      );
+    }
+  }
   switch (provider) {
     case "groq":
       return new GroqProvider(env.GROQ_API_KEY, env.TAVILY_API_KEY);

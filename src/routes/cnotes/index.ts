@@ -5,11 +5,19 @@ import notesRouter from "./notes";
 import noteRouter from "./note";
 import folderRouter from "./folders"
 import { handleImageUpload } from "./image-upload-handler";
-import { authUser } from "@/src/utils/middleware/authenticateUser";
+import { authUser, authUserOptional } from "@/src/utils/middleware/authenticateUser";
 
 const cnotesRouter = new Hono();
 
-cnotesRouter.use("/*", authUser)
+// Optional globally so GET /note/:slug can serve public notes anonymously.
+// Write routes are strict: unauthenticated requests 401 here, before handlers.
+cnotesRouter.use("/*", authUserOptional);
+cnotesRouter.use("/new-note/*", authUser);
+cnotesRouter.use("/notes/*", authUser);
+cnotesRouter.use("/folder/*", authUser);
+cnotesRouter.use("/upload-image", authUser);
+cnotesRouter.use("/note/:slug/update", authUser);
+cnotesRouter.use("/note/:slug/delete", authUser);
 
 cnotesRouter.get("/", (c) => {
   c.status(200);

@@ -4,7 +4,16 @@ import Groq from "groq-sdk";
 import { api } from "@/convex/_generated/api";
 import { returnJson } from "@/src/utils/returnJson";
 
-async function generateTitle(prompt: string, apiKey: string): Promise<string> {
+function fallbackTitle(prompt: string): string {
+  return prompt.split(/\s+/).slice(0, 5).join(" ");
+}
+
+/**
+ * Returns the LLM-generated title, or null when the LLM call failed (caller
+ * falls back to `fallbackTitle` and refunds the reserved quota unit, since
+ * no LLM response was generated).
+ */
+async function generateTitle(prompt: string, apiKey: string): Promise<string | null> {
   const MAX_PROMPT_LENGTH = 500;
   const truncatedPrompt =
     prompt.length > MAX_PROMPT_LENGTH
@@ -36,10 +45,10 @@ async function generateTitle(prompt: string, apiKey: string): Promise<string> {
       .replace(/<think>[\s\S]*?<\/think>/gi, "")
       .replace(/<\/?think>/gi, "")
       .trim();
-    return cleaned || prompt.split(/\s+/).slice(0, 5).join(" ");
+    return cleaned || fallbackTitle(prompt);
   } catch (err) {
     console.error("[generateTitle] error:", err);
-    return prompt.split(/\s+/).slice(0, 5).join(" ");
+    return null;
   }
 }
 
@@ -58,6 +67,15 @@ export async function handleCreateThread(c: Context): Promise<Response> {
     return c.json(
       returnJson(400, "prompt and clientUUID are required", null, null),
     );
+  }
+  if (
+    typeof prompt !== "string" ||
+    typeof clientUUID !== "string" ||
+    prompt.length > 2000 ||
+    clientUUID.length > 128
+  ) {
+    c.status(400);
+    return c.json(returnJson(400, "Invalid prompt or clientUUID", null, null));
   }
 
   const convexClient = new ConvexClient(c.env.CONVEX_URL);
@@ -84,7 +102,46 @@ export async function handleCreateThread(c: Context): Promise<Response> {
       );
     }
 
-    const title = await generateTitle(prompt, c.env.GROQ_API_KEY);
+    // Title generation is an LLM call per new clientUUID — a random-UUID loop
+    // would otherwise spam Groq + DB while bypassing the chat quota. Reserve
+    // one unit of the same daily per-user budget, refunded below if the LLM
+    // call fails (quota is only consumed when a response is generated).
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const quota = await convexClient.mutation(
+        api.llmUsage.checkAndIncrement,
+        { userId: user._id, date: today },
+      );
+      if (!quota.allowed) {
+        c.status(429);
+        return c.json(
+          returnJson(429, "Daily limit reached, try again tomorrow.", null, null),
+        );
+      }
+    } catch (err) {
+      console.error("[createThread] quota check error:", err);
+      c.status(500);
+      return c.json(returnJson(500, "Failed to check quota", null, null));
+    }
+    const refundQuota = async () => {
+      try {
+        await convexClient.mutation(api.llmUsage.refund, {
+          userId: user._id,
+          date: today,
+        });
+      } catch (refundErr) {
+        console.error("[createThread] quota refund failed:", refundErr);
+      }
+    };
+
+    const generatedTitle = await generateTitle(prompt, c.env.GROQ_API_KEY);
+    let title: string;
+    if (generatedTitle === null) {
+      await refundQuota();
+      title = fallbackTitle(prompt);
+    } else {
+      title = generatedTitle;
+    }
 
     const conversationId = await convexClient.mutation(
       api.conversations.createConversation,
@@ -249,6 +306,36 @@ export async function handleUpdateThreadTitle(c: Context): Promise<Response> {
 
     let title = rawTitle;
     if (regenerate) {
+      // Same LLM-cost reasoning as thread creation: reserve one unit of the
+      // daily quota, refunded if the LLM call fails (quota is only consumed
+      // when a response is generated).
+      const today = new Date().toISOString().slice(0, 10);
+      try {
+        const quota = await convexClient.mutation(
+          api.llmUsage.checkAndIncrement,
+          { userId: user._id, date: today },
+        );
+        if (!quota.allowed) {
+          c.status(429);
+          return c.json(
+            returnJson(429, "Daily limit reached, try again tomorrow.", null, null),
+          );
+        }
+      } catch (err) {
+        console.error("[updateThreadTitle] quota check error:", err);
+        c.status(500);
+        return c.json(returnJson(500, "Failed to check quota", null, null));
+      }
+      const refundQuota = async () => {
+        try {
+          await convexClient.mutation(api.llmUsage.refund, {
+            userId: user._id,
+            date: today,
+          });
+        } catch (refundErr) {
+          console.error("[updateThreadTitle] quota refund failed:", refundErr);
+        }
+      };
       let prompt = rawPrompt;
       if (!prompt) {
         const messages = await convexClient.query(
@@ -266,7 +353,13 @@ export async function handleUpdateThreadTitle(c: Context): Promise<Response> {
         }
         prompt = firstUserMessage.content.trim();
       }
-      title = await generateTitle(prompt, c.env.GROQ_API_KEY);
+      const generatedTitle = await generateTitle(prompt, c.env.GROQ_API_KEY);
+      if (generatedTitle === null) {
+        await refundQuota();
+        title = fallbackTitle(prompt);
+      } else {
+        title = generatedTitle;
+      }
     }
 
     await convexClient.mutation(api.conversations.updateConversationTitle, {

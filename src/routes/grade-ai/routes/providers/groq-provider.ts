@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
 import { ChatMessage, InferenceProvider, StreamChunk } from "./types";
+import { RESPONSE_TRUNCATED_MESSAGE } from "./types";
 import webSearch, {
   WEB_SEARCH_TOOL,
   WebSearchImage,
@@ -15,6 +16,13 @@ import {
 } from "@/src/utils/sanitizeError";
 
 const TOOL_USE_FAILED_CODE = "tool_use_failed";
+// Upper bound on completion tokens per request — the single biggest
+// per-request cost lever. Stolen-token / spam damage is bounded even when
+// rate+quota limits are the only other defense. The model is instructed
+// (system prompt) to keep replies complete within this budget, and streams
+// yield a "warning" chunk when the cap cuts a reply off (finish_reason
+// "length") so the UI can tell the user instead of silently truncating.
+const MAX_OUTPUT_TOKENS = 2048;
 
 interface ToolCallAccumulator {
   index: number;
@@ -71,6 +79,7 @@ export class GroqProvider implements InferenceProvider {
         model,
         messages: params,
         stream: true,
+        max_tokens: MAX_OUTPUT_TOKENS,
         tools: [WEB_SEARCH_TOOL],
         tool_choice: "auto",
       });
@@ -89,10 +98,14 @@ export class GroqProvider implements InferenceProvider {
     let thinkingBuffer = "";
     let toolCallFailed = false;
     let toolCallError = "";
+    let truncated = false;
 
     try {
       for await (const chunk of firstResponse) {
         const delta = chunk.choices[0]?.delta;
+        if (chunk.choices[0]?.finish_reason === "length") {
+          truncated = true;
+        }
 
         if (delta?.tool_calls) {
           for (const tc of delta.tool_calls) {
@@ -173,6 +186,10 @@ export class GroqProvider implements InferenceProvider {
     if (textBuffer.length > 0) {
       yield { type: "delta", delta: textBuffer };
       textBuffer = "";
+    }
+
+    if (truncated) {
+      yield { type: "warning", message: RESPONSE_TRUNCATED_MESSAGE };
     }
 
     if (toolCalls.length === 0) {
@@ -292,6 +309,7 @@ export class GroqProvider implements InferenceProvider {
         model,
         messages: params,
         stream: true,
+        max_tokens: MAX_OUTPUT_TOKENS,
       });
     } catch (err: any) {
       console.error("[groqProvider.stream] failed to start final completion", {
@@ -308,6 +326,9 @@ export class GroqProvider implements InferenceProvider {
     try {
       for await (const chunk of finalResponse) {
         const delta = chunk.choices[0]?.delta;
+        if (chunk.choices[0]?.finish_reason === "length") {
+          truncated = true;
+        }
 
         const reasoning = delta?.reasoning ?? (delta as any)?.reasoning_content;
         if (reasoning) {
@@ -357,6 +378,10 @@ export class GroqProvider implements InferenceProvider {
     if (textBuffer.length > 0) {
       yield { type: "delta", delta: textBuffer };
     }
+
+    if (truncated) {
+      yield { type: "warning", message: RESPONSE_TRUNCATED_MESSAGE };
+    }
   }
 
   private async *streamPlain(
@@ -369,6 +394,7 @@ export class GroqProvider implements InferenceProvider {
         model,
         messages: params,
         stream: true,
+        max_tokens: MAX_OUTPUT_TOKENS,
       });
     } catch (err: any) {
       console.error("[groqProvider.stream] fallback completion failed to start", {
@@ -381,10 +407,14 @@ export class GroqProvider implements InferenceProvider {
 
     let textBuffer = "";
     let thinkingBuffer = "";
+    let truncated = false;
 
     try {
       for await (const chunk of response) {
         const delta = chunk.choices[0]?.delta;
+        if (chunk.choices[0]?.finish_reason === "length") {
+          truncated = true;
+        }
 
         const reasoning = delta?.reasoning ?? (delta as any)?.reasoning_content;
         if (reasoning) {
@@ -433,6 +463,10 @@ export class GroqProvider implements InferenceProvider {
 
     if (textBuffer.length > 0) {
       yield { type: "delta", delta: textBuffer };
+    }
+
+    if (truncated) {
+      yield { type: "warning", message: RESPONSE_TRUNCATED_MESSAGE };
     }
   }
 }

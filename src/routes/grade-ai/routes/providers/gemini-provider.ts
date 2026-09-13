@@ -1,5 +1,6 @@
 import { Content, GoogleGenAI } from "@google/genai";
 import { ChatMessage, InferenceProvider, StreamChunk } from "./types";
+import { RESPONSE_TRUNCATED_MESSAGE } from "./types";
 import {
   toUserFacingError,
   webSearchUnavailableMessage,
@@ -15,6 +16,12 @@ const GOOGLE_SEARCH_TOOL_NAME = "google_search";
 // Maximum image queries honored per reply, as a cost bound in case the
 // model emits more markers than expected.
 const MAX_IMAGE_QUERIES = 3;
+// Upper bound on completion tokens per request — matches the Groq provider.
+// The model is instructed (system prompt) to keep replies complete within
+// this budget; a "warning" chunk is yielded when the cap cuts a reply off
+// (finishReason "MAX_TOKENS") so the UI can say so instead of silently
+// truncating.
+const MAX_OUTPUT_TOKENS = 2048;
 
 function toolErrorMessage(err: any): string {
   return toUserFacingError(err, "web_search");
@@ -71,6 +78,8 @@ export class GeminiProvider implements InferenceProvider {
         config: {
           systemInstruction: systemMessage?.content,
           tools: [{ googleSearch: {} }],
+          // Same output cap as the Groq provider — bounds cost per request.
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
         },
       });
     } catch (err) {
@@ -88,6 +97,7 @@ export class GeminiProvider implements InferenceProvider {
     let googleSearchUsed = false;
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
+    let truncated = false;
     const imageQueries: string[] = [];
 
     // Yield user-visible text while holding back any tail that could be a
@@ -110,7 +120,11 @@ export class GeminiProvider implements InferenceProvider {
 
     try {
       for await (const chunk of stream) {
-        const parts = chunk.candidates?.[0]?.content?.parts ?? [];
+        const candidate = chunk.candidates?.[0] as any;
+        if (candidate?.finishReason === "MAX_TOKENS") {
+          truncated = true;
+        }
+        const parts = candidate?.content?.parts ?? [];
 
         for (const part of parts) {
           if (part.thought && part.text) {
@@ -122,7 +136,11 @@ export class GeminiProvider implements InferenceProvider {
           } else if (part.text) {
             buffer += part.text;
             if (buffer.length > 20) {
-              yield* flushText();
+    yield* flushText();
+
+    if (truncated) {
+      yield { type: "warning", message: RESPONSE_TRUNCATED_MESSAGE };
+    }
             }
           }
         }

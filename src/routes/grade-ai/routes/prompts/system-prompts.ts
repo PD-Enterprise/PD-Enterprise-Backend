@@ -62,6 +62,11 @@ Images:
 - Never invent, guess, or rewrite image URLs. If no verified image fits, omit images.
 Your goal is to help the student genuinely understand the topic, not just reach the answer.`;
 
+const OUTPUT_BUDGET_INSTRUCTIONS = `Response length budget:
+- Your reply is cut off automatically after about 2048 tokens (~1500 words). Anything beyond that is lost — the student sees a cut-off notice instead of your ending.
+- Keep every reply complete within that budget: be concise, avoid filler, and don't start a long explanation you can't finish.
+- If the student asks for something long (e.g. a full essay, long story, exhaustive list), give the most useful complete part that fits and end by offering to continue ("Want me to continue with the next part?").`;
+
 const GEMINI_SEARCH_INSTRUCTIONS = `Search behavior (Gemini):
 - You have built-in Google Search grounding. It runs automatically for questions that depend on current, factual, or verifiable information (for example recent events, statistics, definitions, or specific facts) — never try to call a function for plain text search.
 - Do not use search for questions about the student's own work, opinions, or general reasoning that does not require outside facts.
@@ -85,12 +90,14 @@ export function getSystemPrompt(
       ? SOCRATIC_SYSTEM_PROMPT.replace("{UserAcademicLevel}", academicLevelAdded)
       : DIRECT_SYSTEM_PROMPT.replace("{UserAcademicLevel}", academicLevelAdded);
 
-  if (provider !== "gemini") return base;
+  const withBudget = `${base}\n${OUTPUT_BUDGET_INSTRUCTIONS}`;
+
+  if (provider !== "gemini") return withBudget;
 
   // Gemini uses native Google Search grounding for factual text plus a
   // dedicated `image_search` function for verified images, so swap the
   // Groq `web_search` tool section for the Gemini equivalent.
-  return base.replace(
+  return withBudget.replace(
     /Web search tool:[\s\S]*?(?=\nImages:)/,
     GEMINI_SEARCH_INSTRUCTIONS + "\n",
   );

@@ -13,6 +13,7 @@ export const createMessage = mutation({
     content: v.string(),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
+    warning: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -28,13 +29,19 @@ export const createMessage = mutation({
         content: string;
         model?: string;
         provider?: string;
+        warning?: string;
         previousVersions?: string[];
       } = {
         content: args.content,
         model: args.model,
         provider: args.provider,
+        warning: args.warning,
       };
-      if (args.role === "assistant" && existing.content !== args.content) {
+      if (
+        args.role === "assistant" &&
+        existing.content !== args.content &&
+        existing.content !== ""
+      ) {
         updates.previousVersions = [
           ...(existing.previousVersions ?? []),
           existing.content,
@@ -51,6 +58,7 @@ export const createMessage = mutation({
       content: args.content,
       model: args.model,
       provider: args.provider,
+      warning: args.warning,
       createdAt: Date.now(),
     });
 

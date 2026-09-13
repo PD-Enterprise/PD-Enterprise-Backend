@@ -31,6 +31,7 @@ export default defineSchema({
     content: v.string(),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
+    warning: v.optional(v.string()),
     previousVersions: v.optional(v.array(v.string())),
     createdAt: v.number(),
   }).index("by_conversation", ["conversationId"]),
@@ -39,4 +40,12 @@ export default defineSchema({
     academicLevelIndex: v.number(),
     academicLevel: v.string(),
   }).index("by_academic_level_index", ["academicLevelIndex"]),
+
+  llmUsage: defineTable({
+    userId: v.id("users"),
+    /** UTC day bucket, YYYY-MM-DD */
+    date: v.string(),
+    count: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_date", ["userId", "date"]),
 });

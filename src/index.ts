@@ -56,13 +56,13 @@ app.use(
 );
 
 /*
-  Rate Limits
+  Rate Limits (coarse per-IP shield, keyed by non-spoofable cf-connecting-ip).
+  Per-user limits run inside routers after authUser — see src/routes/grade-ai.
 */
 app.use("/", rateLimiter());
 app.use("/pd-enterprise/blog/posts", rateLimiter());
 app.use("/pd-enterprise/blog/posts/:slug", rateLimiter());
-app.use("/note/:slug", rateLimiter());
-app.use("/grade-ai/chat/", rateLimiter());
+app.use("/grade-ai/chat", rateLimiter(30));
 app.use("/beav-ocr/*", rateLimiter(5));
 app.use("*", rateLimiter(30));
 
