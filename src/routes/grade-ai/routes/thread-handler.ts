@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { returnJson } from "@/src/utils/returnJson";
 
 async function generateTitle(prompt: string, apiKey: string): Promise<string> {
-  const MAX_PROMPT_LENGTH = 100;
+  const MAX_PROMPT_LENGTH = 500;
   const truncatedPrompt =
     prompt.length > MAX_PROMPT_LENGTH
       ? prompt.slice(0, MAX_PROMPT_LENGTH).trim()
@@ -14,6 +14,15 @@ async function generateTitle(prompt: string, apiKey: string): Promise<string> {
   try {
     const completion = await client.chat.completions.create({
       model: "qwen/qwen3.6-27b",
+      // A ≤5-word title needs only a handful of tokens — cap output so the
+      // request stays under the org's output-tokens-per-minute limit.
+      // The model reasons in <think> blocks by default, which would eat the
+      // whole budget before any title is produced — disable reasoning so the
+      // output is just the title.
+      max_tokens: 30,
+      temperature: 0,
+      reasoning_format: "hidden",
+      reasoning_effort: "none",
       messages: [
         {
           role: "user",
