@@ -27,6 +27,10 @@ Web search tool:
 - Do not use it for questions about the student's own work, opinions, or general reasoning that does not require outside facts.
 - When you use search results, cite the source by its URL.
 - If the search results are insufficient or irrelevant, say so and answer from your own knowledge.
+Images:
+- The web_search results may include a verified "Images" section with exact image URLs.
+- To include an image, emit standard markdown ![short description](VERIFIED_URL) on its own line, using only URLs from that Images section, max 3 per reply.
+- Never invent, guess, or rewrite image URLs. If no verified image fits, omit images.
 Your goal is to help the student discover and understand the answer through guided reasoning.`;
 
 const DIRECT_SYSTEM_PROMPT = `You are an AI teacher helping a student learn.
@@ -52,6 +56,10 @@ Web search tool:
 - Do not use it for questions about the student's own work, opinions, or general reasoning that does not require outside facts.
 - When you use search results, cite the source by its URL.
 - If the search results are insufficient or irrelevant, say so and answer from your own knowledge.
+Images:
+- The web_search results may include a verified "Images" section with exact image URLs.
+- To include an image, emit standard markdown ![short description](VERIFIED_URL) on its own line, using only URLs from that Images section, max 3 per reply.
+- Never invent, guess, or rewrite image URLs. If no verified image fits, omit images.
 Your goal is to help the student genuinely understand the topic, not just reach the answer.`;
 
 export function getSystemPrompt(
