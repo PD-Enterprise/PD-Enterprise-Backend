@@ -1,12 +1,35 @@
 import { Content, GoogleGenAI } from "@google/genai";
 import { ChatMessage, InferenceProvider, StreamChunk } from "./types";
-import { toUserFacingError } from "@/src/utils/sanitizeError";
+import {
+  toUserFacingError,
+  webSearchUnavailableMessage,
+  webSearchUnparseableMessage,
+} from "@/src/utils/sanitizeError";
+import webSearch, {
+  extractImageQueries,
+  formatImagesAsMarkdown,
+  IMAGE_SEARCH_TOOL_NAME,
+} from "../../utils/webSearch";
+
+const GOOGLE_SEARCH_TOOL_NAME = "google_search";
+// Maximum image queries honored per reply, as a cost bound in case the
+// model emits more markers than expected.
+const MAX_IMAGE_QUERIES = 3;
+
+function toolErrorMessage(err: any): string {
+  return toUserFacingError(err, "web_search");
+}
 
 export class GeminiProvider implements InferenceProvider {
   private client: GoogleGenAI;
+  private tavilyApiKey: string;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, tavilyApiKey: string = "") {
+    if (!apiKey) {
+      throw new Error("The GEMINI_API_KEY is missing or empty.");
+    }
     this.client = new GoogleGenAI({ apiKey });
+    this.tavilyApiKey = tavilyApiKey;
   }
 
   async *stream(
@@ -16,13 +39,7 @@ export class GeminiProvider implements InferenceProvider {
     const systemMessage = messages.find((m) => m.role === "system");
     const conversationMessages = messages.filter((m) => m.role !== "system");
 
-    const history: Content[] = conversationMessages.slice(0, -1).map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
-
-    const lastMessage = conversationMessages.at(-1);
-    if (!lastMessage) {
+    if (conversationMessages.length === 0) {
       yield {
         type: "error",
         message: "No message to respond to. Please send a message and try again.",
@@ -30,29 +47,31 @@ export class GeminiProvider implements InferenceProvider {
       return;
     }
 
-    let chat: any;
+    const contents: Content[] = conversationMessages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    console.log("[geminiProvider.stream] starting", {
+      model,
+      messageCount: contents.length,
+    });
+
+    // NOTE: googleSearch is the only tool on this request. The Gemini API
+    // rejects requests that combine built-in tools with function calling
+    // (400 INVALID_ARGUMENT on gemini-2.5 models), so image lookup uses a
+    // `[[IMAGE_SEARCH: query]]` marker the model emits in-band; the provider
+    // below strips it and runs Tavily directly. Exactly one model request
+    // per turn in the common (no images) case.
+    let stream: AsyncGenerator<any>;
     try {
-      chat = this.client.chats.create({
+      stream = await this.client.models.generateContentStream({
         model,
-        history,
+        contents,
         config: {
           systemInstruction: systemMessage?.content,
           tools: [{ googleSearch: {} }],
         },
-      });
-    } catch (err) {
-      console.error("[geminiProvider.stream] failed to create chat", {
-        model,
-        error: (err as any)?.message ?? err,
-      });
-      yield { type: "error", message: toUserFacingError(err, "inference") };
-      return;
-    }
-
-    let result: AsyncIterable<any>;
-    try {
-      result = await chat.sendMessageStream({
-        message: lastMessage.content,
       });
     } catch (err) {
       console.error("[geminiProvider.stream] failed to start stream", {
@@ -65,59 +84,66 @@ export class GeminiProvider implements InferenceProvider {
 
     let buffer = "";
     let thinkingBuffer = "";
-    let toolNotified = false;
-    let toolName = "google_search";
+    let googleSearchNotified = false;
+    let googleSearchUsed = false;
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
+    const imageQueries: string[] = [];
+
+    // Yield user-visible text while holding back any tail that could be a
+    // partially-streamed image marker, so protocol syntax never leaks and
+    // normal text (including `[1]`-style citations) still streams instantly.
+    const flushText = function* (): Iterable<StreamChunk> {
+      if (thinkingBuffer.length > 0) {
+        yield { type: "thinking", thinking: thinkingBuffer };
+        thinkingBuffer = "";
+      }
+      const { queries, visible, holdback } = extractImageQueries(buffer);
+      for (const q of queries) {
+        if (imageQueries.length < MAX_IMAGE_QUERIES) imageQueries.push(q);
+      }
+      buffer = holdback;
+      if (visible.length > 0) {
+        yield { type: "delta", delta: visible };
+      }
+    };
 
     try {
-      for await (const chunk of result) {
+      for await (const chunk of stream) {
         const parts = chunk.candidates?.[0]?.content?.parts ?? [];
 
         for (const part of parts) {
           if (part.thought && part.text) {
             thinkingBuffer += part.text;
-
             if (thinkingBuffer.length > 20) {
               yield { type: "thinking", thinking: thinkingBuffer };
               thinkingBuffer = "";
             }
-          } else if (part.functionCall) {
-            toolName = part.functionCall.name ?? "function_call";
-            if (!toolNotified) {
-              yield {
-                type: "tool",
-                tool: {
-                  name: toolName,
-                  status: "executing",
-                },
-              };
-              toolNotified = true;
-            }
           } else if (part.text) {
             buffer += part.text;
-
             if (buffer.length > 20) {
-              yield { type: "delta", delta: buffer };
-              buffer = "";
+              yield* flushText();
             }
           }
         }
 
         if (
-          !toolNotified &&
+          !googleSearchNotified &&
           chunk.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length
         ) {
+          googleSearchUsed = true;
+          googleSearchNotified = true;
           yield {
             type: "tool",
-            tool: { name: "google_search", status: "executing" },
+            tool: { name: GOOGLE_SEARCH_TOOL_NAME, status: "executing" },
           };
-          toolNotified = true;
         }
 
         if (chunk.usageMetadata) {
-          totalPromptTokens = chunk.usageMetadata.promptTokenCount ?? 0;
-          totalCompletionTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
+          totalPromptTokens =
+            chunk.usageMetadata.promptTokenCount ?? totalPromptTokens;
+          totalCompletionTokens =
+            chunk.usageMetadata.candidatesTokenCount ?? totalCompletionTokens;
         }
       }
     } catch (err) {
@@ -125,32 +151,80 @@ export class GeminiProvider implements InferenceProvider {
         model,
         error: (err as any)?.message ?? err,
       });
-      if (toolNotified) {
+      if (googleSearchNotified) {
         yield {
           type: "tool",
-          tool: { name: toolName, status: "failed" },
+          tool: { name: GOOGLE_SEARCH_TOOL_NAME, status: "failed" },
         };
       }
       yield {
         type: "error",
-        message: toUserFacingError(err, toolNotified ? "tool" : "inference"),
+        message: toUserFacingError(
+          err,
+          googleSearchNotified ? "tool" : "inference",
+        ),
       };
       return;
     }
 
-    if (toolNotified) {
+    if (googleSearchUsed) {
       yield {
         type: "tool",
-        tool: { name: toolName, status: "completed" },
+        tool: { name: GOOGLE_SEARCH_TOOL_NAME, status: "completed" },
       };
     }
 
-    if (thinkingBuffer.length > 0) {
-      yield { type: "thinking", thinking: thinkingBuffer };
-    }
+    yield* flushText();
 
-    if (buffer.length > 0) {
-      yield { type: "delta", delta: buffer };
+    // Phase 2 (only when the model asked for images): run Tavily for each
+    // collected query and append provider-formatted verified-image markdown.
+    // No second model call is needed — the query already came from the model.
+    for (const query of imageQueries) {
+      if (!query.trim()) {
+        console.warn("[geminiProvider.stream] empty image_search query");
+        yield {
+          type: "tool",
+          tool: { name: IMAGE_SEARCH_TOOL_NAME, status: "failed" },
+        };
+        yield {
+          type: "error",
+          message: webSearchUnparseableMessage(),
+          recoverable: true,
+        };
+        continue;
+      }
+
+      try {
+        yield {
+          type: "tool",
+          tool: { name: IMAGE_SEARCH_TOOL_NAME, status: "executing" },
+        };
+        const search = await webSearch(query, this.tavilyApiKey);
+        console.log("[geminiProvider.stream] image search completed", {
+          query,
+          resultCount: search.results.length,
+          imageCount: search.images.length,
+        });
+        yield {
+          type: "tool",
+          tool: { name: IMAGE_SEARCH_TOOL_NAME, status: "completed" },
+        };
+        const markdown = formatImagesAsMarkdown(search.images);
+        if (markdown) {
+          yield { type: "delta", delta: markdown };
+        }
+      } catch (err: any) {
+        console.error("[geminiProvider.stream] image search failed:", err);
+        yield {
+          type: "tool",
+          tool: { name: IMAGE_SEARCH_TOOL_NAME, status: "failed" },
+        };
+        yield {
+          type: "error",
+          message: toolErrorMessage(err) || webSearchUnavailableMessage(),
+          recoverable: true,
+        };
+      }
     }
 
     yield {
@@ -161,5 +235,11 @@ export class GeminiProvider implements InferenceProvider {
         totalTokens: totalPromptTokens + totalCompletionTokens,
       },
     };
+
+    console.log("[geminiProvider.stream] completed", {
+      model,
+      googleSearchUsed,
+      imageQueryCount: imageQueries.length,
+    });
   }
 }

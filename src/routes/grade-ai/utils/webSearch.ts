@@ -21,6 +21,70 @@ export const WEB_SEARCH_TOOL: ChatCompletionTool = {
   },
 };
 
+/**
+ * Image lookup for Gemini models.
+ *
+ * The Gemini API rejects requests that combine built-in tools
+ * (`googleSearch`) with function calling, so Gemini image search uses an
+ * in-band marker instead of a function declaration: the model emits
+ * `[[IMAGE_SEARCH: query]]` in its reply text, and the Gemini provider
+ * strips the marker and runs the same Tavily search backend below.
+ */
+export const IMAGE_SEARCH_TOOL_NAME = "image_search";
+
+const IMAGE_MARKER_OPENER = "[[IMAGE_SEARCH:";
+const IMAGE_MARKER_CLOSER = "]]";
+const COMPLETE_MARKER_PATTERN = /\[\[IMAGE_SEARCH:\s*([^\]]{1,200}?)\s*\]\]/g;
+
+function longestMarkerPrefixHoldback(text: string): string {
+  // Hold back a trailing fragment that could be a partially-streamed
+  // marker. Two cases: (a) the opener already appeared without its closer
+  // yet — hold everything from the opener; (b) only a proper prefix of the
+  // opener is present at the tail — hold just that prefix.
+  const openerIndex = text.lastIndexOf(IMAGE_MARKER_OPENER);
+  if (openerIndex !== -1) {
+    const afterOpener = text.slice(openerIndex + IMAGE_MARKER_OPENER.length);
+    if (!afterOpener.includes(IMAGE_MARKER_CLOSER)) {
+      return text.slice(openerIndex);
+    }
+  }
+  for (let len = IMAGE_MARKER_OPENER.length - 1; len > 0; len--) {
+    if (text.endsWith(IMAGE_MARKER_OPENER.slice(0, len))) {
+      return text.slice(text.length - len);
+    }
+  }
+  return "";
+}
+
+export interface ExtractedImageQueries {
+  queries: string[];
+  /** User-visible text with all complete markers removed. */
+  visible: string;
+  /** Trailing fragment to re-buffer (possible partial marker). */
+  holdback: string;
+}
+
+/**
+ * Pull complete `[[IMAGE_SEARCH: query]]` markers out of streamed text.
+ * Returns the queries plus the visible text with markers removed and a
+ * holdback fragment that must be prepended to the next chunk.
+ */
+export function extractImageQueries(text: string): ExtractedImageQueries {
+  const queries: string[] = [];
+  const visible = text.replace(COMPLETE_MARKER_PATTERN, (_match, query) => {
+    queries.push(String(query));
+    return "";
+  });
+  const holdback = longestMarkerPrefixHoldback(visible);
+  return {
+    queries,
+    visible: holdback
+      ? visible.slice(0, visible.length - holdback.length)
+      : visible,
+    holdback,
+  };
+}
+
 export interface WebSearchResult {
   title: string;
   url: string;
@@ -180,4 +244,22 @@ export function parseQuery(argumentsString?: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Format verified images as user-facing markdown, one image per line.
+ * Only URLs from Tavily results are used — the model never invents URLs
+ * because it never sees this step. Returns "" when there are no images.
+ */
+export function formatImagesAsMarkdown(
+  images: WebSearchImage[] = [],
+  maxImages = 3,
+): string {
+  const lines = images.slice(0, maxImages).map((img, i) => {
+    const alt = (img.description || `Image ${i + 1}`)
+      .replace(/[\[\]]/g, "")
+      .slice(0, 120);
+    return `![${alt}](${img.url})`;
+  });
+  return lines.length > 0 ? `\n\n${lines.join("\n")}\n` : "";
 }

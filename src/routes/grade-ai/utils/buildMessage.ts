@@ -13,8 +13,9 @@ export function buildMessages(
     mode: "socratic" | "direct",
     academicLevel: string,
     convexMessages?: ConvexMessage[],
+    provider: "groq" | "gemini" = "groq",
 ): ChatMessage[] {
-    const systemPrompt = getSystemPrompt(mode, academicLevel);
+    const systemPrompt = getSystemPrompt(mode, academicLevel, provider);
 
     if (convexMessages && convexMessages.length > 0) {
       const sorted = [...convexMessages].sort((a, b) => a.createdAt - b.createdAt);

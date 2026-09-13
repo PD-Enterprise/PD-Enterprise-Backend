@@ -62,13 +62,36 @@ Images:
 - Never invent, guess, or rewrite image URLs. If no verified image fits, omit images.
 Your goal is to help the student genuinely understand the topic, not just reach the answer.`;
 
+const GEMINI_SEARCH_INSTRUCTIONS = `Search behavior (Gemini):
+- You have built-in Google Search grounding. It runs automatically for questions that depend on current, factual, or verifiable information (for example recent events, statistics, definitions, or specific facts) — never try to call a function for plain text search.
+- Do not use search for questions about the student's own work, opinions, or general reasoning that does not require outside facts.
+- When grounding supplies sources, cite the source by its URL.
+- If no useful grounded results exist, say so and answer from your own knowledge.
+Image search tool:
+- When the reply would benefit from illustrations, diagrams, photos, or visual examples, emit the marker [[IMAGE_SEARCH: your query]] on its own line, for example: [[IMAGE_SEARCH: photosynthesis diagram]].
+- The query must be plain text without any ] character.
+- Never embed images yourself and never invent image URLs — the system fetches verified images for the marker and appends them to the reply automatically.
+- Do not explain or mention the marker; it is removed before the student sees the reply.`;
+
 export function getSystemPrompt(
   mode: "socratic" | "direct",
   academicLevel: string,
+  provider: "groq" | "gemini" = "groq",
 ): string {
   const academicLevelAdded = `{UserAcademicLevel: ${academicLevel}}`;
 
-  return mode === "socratic"
-    ? SOCRATIC_SYSTEM_PROMPT.replace("{UserAcademicLevel}", academicLevelAdded)
-    : DIRECT_SYSTEM_PROMPT.replace("{UserAcademicLevel}", academicLevelAdded);
+  const base =
+    mode === "socratic"
+      ? SOCRATIC_SYSTEM_PROMPT.replace("{UserAcademicLevel}", academicLevelAdded)
+      : DIRECT_SYSTEM_PROMPT.replace("{UserAcademicLevel}", academicLevelAdded);
+
+  if (provider !== "gemini") return base;
+
+  // Gemini uses native Google Search grounding for factual text plus a
+  // dedicated `image_search` function for verified images, so swap the
+  // Groq `web_search` tool section for the Gemini equivalent.
+  return base.replace(
+    /Web search tool:[\s\S]*?(?=\nImages:)/,
+    GEMINI_SEARCH_INSTRUCTIONS + "\n",
+  );
 }

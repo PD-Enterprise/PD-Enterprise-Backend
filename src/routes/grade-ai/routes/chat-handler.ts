@@ -103,6 +103,7 @@ export async function handleChat(c: Context): Promise<Response> {
     mode,
     academicLevel.academicLevel,
     contextMessages,
+    provider,
   );
 
   const stream = new ReadableStream({

@@ -18,7 +18,7 @@ export function resolveProvider(
     case "groq":
       return new GroqProvider(env.GROQ_API_KEY, env.TAVILY_API_KEY);
     case "gemini":
-      return new GeminiProvider(env.GEMINI_API_KEY);
+      return new GeminiProvider(env.GEMINI_API_KEY, env.TAVILY_API_KEY);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
