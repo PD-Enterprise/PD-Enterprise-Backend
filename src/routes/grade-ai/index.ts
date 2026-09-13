@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { handleChat } from "./routes/chat-handler";
-import { handleCreateThread, handleGetThreads, handleGetMessages, handleDeleteThread } from "./routes/thread-handler";
+import { handleCreateThread, handleGetThreads, handleGetMessages, handleUpdateThreadTitle, handleDeleteThread } from "./routes/thread-handler";
 import { returnJson } from "../../utils/returnJson";
 import { modelList } from "./utils/modelList";
 import { Bindings } from "../../types";
@@ -40,6 +40,7 @@ aiRouter.get("/", (c) => {
  */
 aiRouter.post("/chat", handleChat);
 aiRouter.post("/thread", handleCreateThread);
+aiRouter.patch("/thread/:clientUUID", handleUpdateThreadTitle);
 aiRouter.delete("/thread/:clientUUID", handleDeleteThread);
 aiRouter.get("/threads", handleGetThreads);
 aiRouter.get("/messages/:clientUUID", handleGetMessages);

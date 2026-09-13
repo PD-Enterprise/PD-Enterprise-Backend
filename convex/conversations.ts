@@ -59,6 +59,21 @@ export const getConversationByClientUUID = query({
   },
 });
 
+export const updateConversationTitle = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.conversationId, {
+      title: args.title,
+      updatedAt: Date.now(),
+    });
+
+    return args.conversationId;
+  },
+});
+
 export const deleteConversation = mutation({
   args: {
     conversationId: v.id("conversations"),
