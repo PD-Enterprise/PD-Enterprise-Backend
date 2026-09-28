@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { Groq } from "groq-sdk";
 import { convertToBase64 } from "./convertToBase64";
 import { StreamChunk } from "@/src/routes/grade-ai/routes/providers/types";
 import { ocrPrompt } from "./prompt";
@@ -17,24 +18,37 @@ export async function* generateOCR(
     return;
   }
 
-  const ocr = new GoogleGenAI({ apiKey });
-  const model = "gemini-3.1-flash-lite";
-  const imagePart = { inlineData: { data: base64String, mimeType: file.type } };
-  const contents = [
-    {
-      role: "user",
-      parts: [imagePart, { text: ocrPrompt }],
-    },
-  ];
+  const ocr = new Groq({ apiKey });
+  const model = "qwen/qwen3.8-27b";
 
-  const result = await ocr.models.generateContentStream({ model, contents });
+  const result = await ocr.chat.completions.create({
+    messages: [{
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: ocrPrompt,
+        },
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${base64String}`
+          }
+        }],
+
+    }],
+    model,
+    include_reasoning: false,
+    reasoning_effort: "none",
+    stream: true,
+  });
 
   let buffer = "";
   let totalPromptTokens = 0;
   let totalCompletionTokens = 0;
 
   for await (const chunk of result) {
-    const text = chunk.text ?? "";
+    const text = chunk.choices[0].delta.content ?? "";
     if (text) {
       buffer += text;
 
@@ -44,9 +58,9 @@ export async function* generateOCR(
       }
     }
 
-    if (chunk.usageMetadata) {
-      totalPromptTokens = chunk.usageMetadata.promptTokenCount ?? 0;
-      totalCompletionTokens = chunk.usageMetadata.candidatesTokenCount ?? 0;
+    if (chunk.x_groq?.usage) {
+      totalPromptTokens = chunk.x_groq.usage.prompt_tokens ?? 0;
+      totalCompletionTokens = chunk.x_groq.usage.completion_tokens ?? 0;
     }
   }
 

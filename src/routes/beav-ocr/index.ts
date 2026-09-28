@@ -39,7 +39,7 @@ ocrRouter.post("/upload",
                 const encode = (str: string) => new TextEncoder().encode(str);
 
                 try {
-                    for await (const chunk of generateOCR(c.env.GEMINI_OCR_API_KEY, file)) {
+                    for await (const chunk of generateOCR(c.env.GROQ_OCR_API_KEY, file)) {
                         controller.enqueue(encode(formatNDJSONChunk(chunk)));
                     }
                     controller.enqueue(encode(formatNDJSONDone()));

@@ -13,6 +13,7 @@ export type Bindings = {
   ENVIRONMENT?: string;
   TAVILY_API_KEY: string;
   GEMINI_OCR_API_KEY: string;
+  GROQ_OCR_API_KEY: string;
 };
 
 export type functionReturnType = {
