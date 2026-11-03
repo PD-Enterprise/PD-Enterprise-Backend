@@ -45,8 +45,10 @@ ocrRouter.post("/upload",
                     controller.enqueue(encode(formatNDJSONDone()));
                 } catch (err: any) {
                     console.error("[beav-ocr] OCR stream failed:", err?.message ?? err);
+                    // Stage-2 failures are contained inside the pipeline, so any
+                    // error reaching the route is from the extraction stage.
                     controller.enqueue(
-                        encode(formatNDJSONError(toUserFacingError(err, "ocr"))),
+                        encode(formatNDJSONError(toUserFacingError(err, "ocr"), "extracting")),
                     );
                 } finally {
                     controller.close();

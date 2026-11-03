@@ -1,4 +1,4 @@
-import type { StreamChunk } from "@/src/routes/grade-ai/routes/providers/types";
+import type { StageType, StreamChunk } from "@/src/routes/grade-ai/routes/providers/types";
 
 export function formatNDJSONChunk(chunk: StreamChunk): string {
   return JSON.stringify(chunk) + "\n";
@@ -8,8 +8,8 @@ export function formatNDJSONDone(): string {
   return JSON.stringify({ type: "done" }) + "\n";
 }
 
-export function formatNDJSONError(error: string): string {
-  return JSON.stringify({ type: "error", message: error }) + "\n";
+export function formatNDJSONError(error: string, stage?: StageType): string {
+  return JSON.stringify({ type: "error", message: error, stage }) + "\n";
 }
 
 export const NDJSON_HEADERS: Record<string, string> = {

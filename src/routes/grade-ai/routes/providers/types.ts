@@ -22,7 +22,11 @@ export type StreamChunkType =
   | "usage"
   | "done"
   | "warning"
-  | "error";
+  | "error"
+  | "stage";
+
+/** Pipeline stage tag for flows that chain multiple model calls. */
+export type StageType = "extracting" | "processing";
 
 /** Sent when the model hit MAX_OUTPUT_TOKENS and the reply was cut off. */
 export const RESPONSE_TRUNCATED_MESSAGE =
@@ -42,6 +46,7 @@ export interface StreamChunk {
   delta?: string;
   thinking?: string;
   tool?: ToolChunk;
+  stage?: StageType;
   usage?: {
     promptTokens: number;
     completionTokens: number;
