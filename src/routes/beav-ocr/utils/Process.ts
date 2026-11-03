@@ -6,8 +6,9 @@ const PROCESSING_MODEL = "openai/gpt-oss-20b";
 
 /**
  * Stage 2 of the beav-ocr pipeline: feed the raw transcription to a text model
- * that formats it (LaTeX math, wrapped-line joining). Yields staged deltas and
- * a usage summary; the caller supplies the raw stage-1 transcription.
+ * that formats it (LaTeX math, wrapped-line joining). The stage-2 response is
+ * buffered, cleaned of reasoning leakage and echoed input, then emitted as a
+ * single staged delta — the frontend swaps the raw transcription for this.
  */
 export async function* generateProcessedText(
   apiKey: string,
@@ -22,8 +23,12 @@ export async function* generateProcessedText(
   const result = await groq.chat.completions.create({
     messages: [
       {
+        role: "system",
+        content: processPrompt,
+      },
+      {
         role: "user",
-        content: `${processPrompt}\n\n## Transcription to format\n\n${rawText}`,
+        content: rawText,
       },
     ],
     model: PROCESSING_MODEL,
@@ -32,27 +37,15 @@ export async function* generateProcessedText(
     stream: true,
   });
 
-  let buffer = "";
   const reasoning = { inside: false };
+  let output = "";
   let totalPromptTokens = 0;
   let totalCompletionTokens = 0;
 
   for await (const chunk of result) {
     const text = chunk.choices[0]?.delta.content ?? "";
     if (text) {
-      const clean = dropReasoning(text, reasoning);
-      if (clean) {
-        buffer += clean;
-
-        if (buffer.length > 20) {
-          yield {
-            type: "delta",
-            stage: "processing",
-            delta: buffer,
-          };
-          buffer = "";
-        }
-      }
+      output += dropReasoning(text, reasoning);
     }
 
     if (chunk.x_groq?.usage) {
@@ -61,8 +54,9 @@ export async function* generateProcessedText(
     }
   }
 
-  if (buffer.length > 0) {
-    yield { type: "delta", stage: "processing", delta: buffer };
+  const cleaned = stripEchoedInput(stripMdStructure(output), rawText).trim();
+  if (cleaned) {
+    yield { type: "delta", stage: "processing", delta: cleaned };
   }
 
   yield {
@@ -76,17 +70,17 @@ export async function* generateProcessedText(
   };
 }
 
-// Tag markers are built from char codes so this file never contains a literal
-// think-tag, which itself would trip reasoning-strip tooling.
+// Prompt-markup markers are built without literal think-tag text so this file
+// never contains one, which would itself trip reasoning-strip tooling.
 const LT = String.fromCharCode(60);
-const REASONING_OPEN = `${LT}think${String.fromCharCode(62)}`;
-const REASONING_CLOSE = `${LT}/${"think"}${String.fromCharCode(62)}`;
+const REASONING_OPEN = LT + "think" + String.fromCharCode(62);
+const REASONING_CLOSE = LT + "/think" + String.fromCharCode(62);
 
 /**
  * gpt-oss is a reasoning model. Reasoning normally arrives on delta.reasoning
- * (ignored here), but if it leaks into delta.content inside a reasoning block,
- * cut it out so only final response text reaches the stream. Tracks open/close
- * markers across streamed chunks via the shared `reasoning` state.
+ * (ignored here), but if it leaks into delta.content inside a think block, cut
+ * it out so only final response text accumulates. Tracks open/close markers
+ * across streamed chunks via the shared `reasoning` state.
  */
 function dropReasoning(text: string, reasoning: { inside: boolean }): string {
   let t = text;
@@ -110,4 +104,68 @@ function dropReasoning(text: string, reasoning: { inside: boolean }): string {
   }
 
   return t;
+}
+
+/**
+ * If the output contains the entire raw transcription repeated somewhere,
+ * keep the content on the side with more text — that is the formatted result;
+ * the repeated raw blob is an echo of the input and gets dropped.
+ */
+function stripEchoedInput(output: string, raw: string): string {
+  const normOut = withIndexMap(output);
+  const normRaw = collapse(raw);
+  if (!normOut.text || !normRaw) return output;
+
+  const idx = normOut.text.indexOf(normRaw);
+  if (idx === -1) return output;
+
+  const startOrig = normOut.map[idx] ?? 0;
+  const endOrig = normOut.map[idx + normRaw.length - 1] ?? output.length - 1;
+  const before = output.slice(0, startOrig).trim();
+  const after = output.slice(endOrig + 1).trim();
+  if (before.length < after.length) return after;
+  return before;
+}
+
+/**
+ * Drop markdown heading lines ("## ") from the output. The extraction prompt
+ * forbids markdown in the transcription, so any heading lines in the model's
+ * response are prompt structure or echoed headers, not content.
+ */
+function stripMdStructure(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !/^\s*#{1,4} /.test(line))
+    .join("\n");
+}
+
+interface IndexMap {
+  text: string;
+  map: number[];
+}
+
+/** Collapse whitespace runs to single spaces while remembering original offsets. */
+function withIndexMap(s: string): IndexMap {
+  let text = "";
+  const map: number[] = [];
+  let pendingSpace = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f" || c === "\v") {
+      pendingSpace = true;
+    } else {
+      if (pendingSpace) {
+        text += " ";
+        map.push(i);
+        pendingSpace = false;
+      }
+      text += c;
+      map.push(i);
+    }
+  }
+  return { text, map };
+}
+
+function collapse(s: string): string {
+  return withIndexMap(s).text;
 }
