@@ -2,7 +2,7 @@ import { Groq } from "groq-sdk";
 import { StreamChunk } from "@/src/routes/grade-ai/routes/providers/types";
 import { processPrompt } from "./prompt";
 
-const PROCESSING_MODEL = "openai/gpt-oss-20b";
+const PROCESSING_MODEL = "openai/gpt-oss-120b";
 
 /**
  * Stage 2 of the beav-ocr pipeline: feed the raw transcription to a text model
@@ -33,7 +33,7 @@ export async function* generateProcessedText(
     ],
     model: PROCESSING_MODEL,
     include_reasoning: false,
-    reasoning_effort: "low",
+    reasoning_effort: "medium",
     stream: true,
   });
 
@@ -118,13 +118,28 @@ function stripEchoedInput(output: string, raw: string): string {
 
   const idx = normOut.text.indexOf(normRaw);
   if (idx === -1) return output;
+  // When the collapsed output equals the collapsed input, the model merely
+  // repeated the transcription (or line-joined it) — keep it as-is; cutting
+  // would leave nothing to display. Only a superstring carries both an echo
+  // and additional formatted content worth salvaging.
+  if (normOut.text.length <= normRaw.length) {
+    console.warn(
+      `[beav-ocr] stage-2 output ~= input (${normOut.text.length} vs ${normRaw.length} collapsed chars) ` +
+        `— formatting model returned no real transformation`,
+    );
+    return output;
+  }
 
   const startOrig = normOut.map[idx] ?? 0;
   const endOrig = normOut.map[idx + normRaw.length - 1] ?? output.length - 1;
   const before = output.slice(0, startOrig).trim();
   const after = output.slice(endOrig + 1).trim();
-  if (before.length < after.length) return after;
-  return before;
+  const lengthThreshold = before.length >= after.length ? before : after;
+  console.warn(
+    `[beav-ocr] stage-2 echo cut triggered (out=${output.length}, raw=${raw.length} chars, ` +
+      `before=${before.length}, after=${after.length})`,
+  );
+  return lengthThreshold;
 }
 
 /**
