@@ -2,7 +2,7 @@ import { Groq } from "groq-sdk";
 import { StreamChunk } from "@/src/routes/grade-ai/routes/providers/types";
 import { processPrompt } from "./prompt";
 
-const PROCESSING_MODEL = "openai/gpt-oss-120b";
+const PROCESSING_MODEL = "openai/gpt-oss-20b";
 
 /**
  * Stage 2 of the beav-ocr pipeline: feed the raw transcription to a text model
@@ -33,7 +33,6 @@ export async function* generateProcessedText(
     ],
     model: PROCESSING_MODEL,
     include_reasoning: false,
-    reasoning_effort: "medium",
     stream: true,
   });
 
@@ -125,7 +124,7 @@ function stripEchoedInput(output: string, raw: string): string {
   if (normOut.text.length <= normRaw.length) {
     console.warn(
       `[beav-ocr] stage-2 output ~= input (${normOut.text.length} vs ${normRaw.length} collapsed chars) ` +
-        `— formatting model returned no real transformation`,
+      `— formatting model returned no real transformation`,
     );
     return output;
   }
@@ -137,7 +136,7 @@ function stripEchoedInput(output: string, raw: string): string {
   const lengthThreshold = before.length >= after.length ? before : after;
   console.warn(
     `[beav-ocr] stage-2 echo cut triggered (out=${output.length}, raw=${raw.length} chars, ` +
-      `before=${before.length}, after=${after.length})`,
+    `before=${before.length}, after=${after.length})`,
   );
   return lengthThreshold;
 }
