@@ -49,7 +49,7 @@ export async function* generateOCR(
     }],
     model: OCR_MODEL,
     include_reasoning: false,
-    reasoning_effort: "none",
+    reasoning_effort: "low",
     stream: true,
   });
 

@@ -33,6 +33,7 @@ export async function* generateProcessedText(
     ],
     model: PROCESSING_MODEL,
     include_reasoning: false,
+    reasoning_effort: "low",
     stream: true,
   });
 
