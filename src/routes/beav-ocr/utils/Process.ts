@@ -1,6 +1,6 @@
 import { Groq } from "groq-sdk";
 import { StreamChunk } from "@/src/routes/grade-ai/routes/providers/types";
-import { processPrompt } from "./processPrompt";
+import { processPrompt } from "./prompt";
 
 const PROCESSING_MODEL = "openai/gpt-oss-20b";
 
