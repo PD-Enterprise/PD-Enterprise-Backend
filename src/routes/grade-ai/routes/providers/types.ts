@@ -9,7 +9,7 @@ export interface ChatMessage {
 
 export interface ChatRequestBody {
   prompt: string;
-  provider: "groq" | "gemini";
+  provider: "groq" | "gemini" | "cloudflare";
   mode: ModeType;
   history: ChatMessage[];
   conversationId: string;

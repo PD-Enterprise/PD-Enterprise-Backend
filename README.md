@@ -109,29 +109,34 @@ All endpoints return JSON with shape `{ status, message, data, error }`, unless 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/grade-ai/chat` | Streamed AI chat (NDJSON). Supports Groq & Gemini providers, Socratic & Direct modes |
-| `GET` | `/grade-ai/get-model-list` | List available AI models with provider and metadata |
+| `POST` | `/grade-ai/chat` | Streamed AI chat (NDJSON). Supports Groq, Gemini, and Cloudflare Workers AI providers, Socratic & Direct modes |
+| `GET` | `/grade-ai/model-list` | List available AI models with provider and metadata |
 
 **Chat Request Body:**
 
 ```json
 {
   "prompt": "string (1-2000 chars)",
-  "provider": "groq | gemini",
+  "provider": "groq | gemini | cloudflare",
   "model": "string",
   "mode": "socratic | direct",
   "history": [{ "role": "user|assistant|system", "content": "string" }],
   "conversationId": "string",
-  "email": "string"
+  "messageClientId": "string",
+  "assistantClientId": "string"
 }
 ```
 
 **Chat Response:** `application/x-ndjson` stream with chunks:
 
 - `{"type":"delta","delta":"..."}` — partial response text
+- `{"type":"thinking","thinking":"..."}` — model reasoning (when available)
 - `{"type":"usage","usage":{"promptTokens":N,"completionTokens":N,"totalTokens":N}}` — token usage
+- `{"type":"warning","message":"..."}` — non-fatal warnings (e.g. truncation/context)
 - `{"type":"done"}` — stream complete
 - `{"type":"error","message":"..."}` — stream error
+
+> Cloudflare provider note (MVP): uses Workers AI via the `AI` binding (`agents/models/ai-sdk` + Vercel AI SDK) for plain chat streaming. Groq/Gemini-specific web-search/grounding flows are not yet implemented for Cloudflare models. Workers AI must be enabled for the account and selected `@cf/*` models must be available.
 
 ### Academic Levels
 
@@ -166,7 +171,7 @@ All endpoints return JSON with shape `{ status, message, data, error }`, unless 
 - Development config via `wrangler.toml` + `.dev.vars` (local env variables).
 - Two Neon PostgreSQL databases (Users + CNotes) accessed via Drizzle ORM with `@neondatabase/serverless`.
 - Convex backend for AI chat history, user profiles, and academic level data.
-- AI inference via Groq SDK and Google Gemini API.
+- AI inference via Groq SDK, Google Gemini API, and Cloudflare Workers AI (binding).
 
 **Required environment variables** (set in `.dev.vars` for local, `wrangler secret` for production):
 
@@ -177,6 +182,15 @@ All endpoints return JSON with shape `{ status, message, data, error }`, unless 
 | `CONVEX_URL` | Convex deployment URL |
 | `GROQ_API_KEY` | Groq API key for AI inference |
 | `GEMINI_API_KEY` | Google Gemini API key for AI inference |
+| `TAVILY_API_KEY` | Tavily API key for web search/grounding flows |
+
+**Worker bindings** (`wrangler.toml`):
+
+| Binding | Description |
+|---------|-------------|
+| `AI` | Workers AI binding used by the `cloudflare` Grade AI provider (`[ai] binding = "AI"`) |
+
+> Cloudflare Workers AI prerequisites (dashboard/account): enable Workers AI for the account, ensure the chosen `@cf/*` chat models are available/allowed, and configure AI Gateway/billing (e.g. default gateway or unified credits) as required by your account for `env.AI.run` requests. No provider API key secret is required in this app for the binding-based `cloudflare` provider.
 
 ## Rate Limiting
 
@@ -191,8 +205,9 @@ All endpoints return JSON with shape `{ status, message, data, error }`, unless 
 - **Hono** v4 — Web framework for Cloudflare Workers
 - **Drizzle ORM** v0.44 — TypeScript ORM for PostgreSQL
 - **Zod** v4 — Schema validation
-- **Groq SDK** — AI chat (llama, GPT OSS models)
-- **@google/genai** — Google Gemini AI (Flash 2.5)
+- **Groq SDK** — AI chat (Groq provider)
+- **@google/genai** — Google Gemini AI
+- **agents** + **ai** (`@ai-sdk/provider`) — Cloudflare Workers AI via `agents/models/ai-sdk` (`createAI` + `streamText`) for the `cloudflare` provider
 - **Convex** — Realtime backend for chat storage & user profiles
 - **hono-rate-limit** — Rate limiting middleware
 - **nanoid** — Unique slug generation

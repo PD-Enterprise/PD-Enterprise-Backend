@@ -1,3 +1,4 @@
+import { CloudflareProvider } from "./cloudflare-provider";
 import { GeminiProvider } from "./gemini-provider";
 import { GroqProvider } from "./groq-provider";
 import { ChatRequestBody, InferenceProvider } from "./types";
@@ -9,6 +10,7 @@ interface ProviderEnv {
   GROQ_API_KEY: string;
   GEMINI_API_KEY: string;
   TAVILY_API_KEY: string;
+  AI?: any;
 }
 
 export function resolveProvider(
@@ -34,6 +36,11 @@ export function resolveProvider(
       return new GroqProvider(env.GROQ_API_KEY, env.TAVILY_API_KEY);
     case "gemini":
       return new GeminiProvider(env.GEMINI_API_KEY, env.TAVILY_API_KEY);
+    case "cloudflare":
+      if (!env.AI) {
+        throw new Error("The AI binding is missing.");
+      }
+      return new CloudflareProvider(env.AI);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }

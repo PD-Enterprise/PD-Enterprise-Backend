@@ -81,7 +81,7 @@ Image search tool:
 export function getSystemPrompt(
   mode: "socratic" | "direct",
   academicLevel: string,
-  provider: "groq" | "gemini" = "groq",
+  provider: "groq" | "gemini" | "cloudflare" = "groq",
 ): string {
   const academicLevelAdded = `{UserAcademicLevel: ${academicLevel}}`;
 

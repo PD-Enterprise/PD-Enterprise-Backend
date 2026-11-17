@@ -4,11 +4,14 @@
     "dev": "wrangler dev"
   },
   "dependencies": {
+    "@ai-sdk/provider": "^4.0.38",
     "@auth/core": "^0.34.3",
     "@google/genai": "^1.50.1",
     "@neondatabase/serverless": "^1.1.0",
     "@sentry/cloudflare": "^10.69.0",
     "@sentry/hono": "^10.69.0",
+    "agents": "^0.33.0",
+    "ai": "^7.0.173",
     "better-auth": "^1.6.12",
     "cloudinary": "^2.10.0",
     "convex": "^1.36.1",

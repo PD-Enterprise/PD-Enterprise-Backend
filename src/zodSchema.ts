@@ -22,7 +22,7 @@ export const noteSchema = z.object({
 export const chatRequestSchema = z
   .object({
     prompt: z.string().min(1).max(2000).trim(),
-    provider: z.enum(["groq", "gemini"]),
+    provider: z.enum(["groq", "gemini", "cloudflare"]),
     model: z.string().min(1).max(128),
     mode: z.enum(["socratic", "direct"]),
     history: z

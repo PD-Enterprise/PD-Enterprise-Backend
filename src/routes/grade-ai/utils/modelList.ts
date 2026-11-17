@@ -1,5 +1,5 @@
 type ModelList = {
-  providerName: "groq" | "gemini";
+  providerName: "groq" | "gemini" | "cloudflare";
   modelName: string;
   modelString: string;
   description: string;
@@ -21,15 +21,27 @@ export const modelList: ModelList[] = [
   },
   {
     providerName: "gemini",
-    modelName: "Gemini 2.5 Flash",
-    modelString: "gemini-2.5-flash",
+    modelName: "Gemini 2.1 Flash",
+    modelString: "gemini-2.1-flash",
     description: "Best for advanced coding, analysis, and detailed conversations.",
   },
   {
     providerName: "gemini",
-    modelName: "Gemini 2.5 Flash Lite",
-    modelString: "gemini-2.5-flash-lite",
-    description: "Balanced speed and quality for coding and general use.",
+    modelName: "Gemini 2.1 Flash Lite",
+    modelString: "gemini-2.1-flash-lite",
+    description: "Best for advanced coding, analysis, and detailed conversations.",
+  },
+  {
+    providerName: "cloudflare",
+    modelName: "Llama 3.1 8B Instruct",
+    modelString: "@cf/meta/llama-3.1-8b-instruct",
+    description: "Fast general-purpose chat model on Workers AI.",
+  },
+  {
+    providerName: "cloudflare",
+    modelName: "Llama 3.3 70B Instruct FP8 Fast",
+    modelString: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    description: "Higher quality reasoning and instruction following on Workers AI.",
   },
 ];
 

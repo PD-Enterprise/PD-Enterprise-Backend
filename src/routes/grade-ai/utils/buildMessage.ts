@@ -31,7 +31,7 @@ export function buildMessages(
     mode: "socratic" | "direct",
     academicLevel: string,
     convexMessages?: ConvexMessage[],
-    provider: "groq" | "gemini" = "groq",
+    provider: "groq" | "gemini" | "cloudflare" = "groq",
 ): BuiltMessages {
     const systemPrompt = getSystemPrompt(mode, academicLevel, provider);
 
