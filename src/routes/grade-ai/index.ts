@@ -50,7 +50,7 @@ aiRouter.get("/messages/:clientUUID", handleGetMessages);
 
 /**
  * Get model list
- * GET /grade-ai/get-model-list
+ * GET /grade-ai/model-list
  */
 aiRouter.get("/model-list", async (c) => {
   c.status(200);

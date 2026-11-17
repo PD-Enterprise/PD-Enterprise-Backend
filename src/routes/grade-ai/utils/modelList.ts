@@ -37,14 +37,7 @@ export const modelList: ModelList[] = [
     modelString: "@cf/zai-org/glm-4.7-flash",
     description: "Fast multilingual text generation model with tool calling support.",
     supportsTools: true,
-  },
-  {
-    providerName: "cloudflare",
-    modelName: "Kimi K2.5",
-    modelString: "@cf/moonshotai/kimi-k2.5",
-    description: "Frontier-scale model with multi-turn tool calling and vision inputs.",
-    supportsTools: true,
-  },
+  }
 ];
 
 /** modelString -> provider allowlist. Single source of truth for validation. */
