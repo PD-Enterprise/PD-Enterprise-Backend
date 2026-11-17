@@ -22,7 +22,7 @@ async function generateTitle(prompt: string, apiKey: string): Promise<string | n
   const client = new Groq({ apiKey });
   try {
     const completion = await client.chat.completions.create({
-      model: "qwen/qwen3.6-27b",
+      model: "qwen/qwen3.8-27b",
       // A ≤5-word title needs only a handful of tokens — cap output so the
       // request stays under the org's output-tokens-per-minute limit.
       // The model reasons in <think> blocks by default, which would eat the
