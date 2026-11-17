@@ -32,8 +32,9 @@ export function buildMessages(
     academicLevel: string,
     convexMessages?: ConvexMessage[],
     provider: "groq" | "gemini" | "cloudflare" = "groq",
+    supportsTools: boolean = true,
 ): BuiltMessages {
-    const systemPrompt = getSystemPrompt(mode, academicLevel, provider);
+    const systemPrompt = getSystemPrompt(mode, academicLevel, provider, supportsTools);
 
     if (convexMessages && convexMessages.length > 0) {
       const sorted = [...convexMessages].sort((a, b) => a.createdAt - b.createdAt);

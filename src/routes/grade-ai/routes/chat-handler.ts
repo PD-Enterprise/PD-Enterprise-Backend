@@ -11,6 +11,7 @@ import { ConvexClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { chatRequestSchema } from "@/src/zodSchema";
 import { buildMessages } from "../utils/buildMessage";
+import { providerSupportsTools } from "../utils/modelList";
 import { returnJson } from "@/src/utils/returnJson";
 import { toUserFacingError } from "@/src/utils/sanitizeError";
 
@@ -162,6 +163,7 @@ export async function handleChat(c: Context): Promise<Response> {
     academicLevel.academicLevel,
     contextMessages,
     provider,
+    providerSupportsTools(provider, model),
   );
   if (contextTruncated) {
     console.log("[chat] context truncated", {

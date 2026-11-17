@@ -2,7 +2,7 @@ import { CloudflareProvider } from "./cloudflare-provider";
 import { GeminiProvider } from "./gemini-provider";
 import { GroqProvider } from "./groq-provider";
 import { ChatRequestBody, InferenceProvider } from "./types";
-import { ALLOWED_CHAT_MODELS } from "../../utils/modelList";
+import { ALLOWED_CHAT_MODELS, modelSupportsTools } from "../../utils/modelList";
 
 type ProviderName = ChatRequestBody["provider"];
 
@@ -36,11 +36,25 @@ export function resolveProvider(
       return new GroqProvider(env.GROQ_API_KEY, env.TAVILY_API_KEY);
     case "gemini":
       return new GeminiProvider(env.GEMINI_API_KEY, env.TAVILY_API_KEY);
-    case "cloudflare":
+    case "cloudflare": {
       if (!env.AI) {
         throw new Error("The AI binding is missing.");
       }
-      return new CloudflareProvider(env.AI);
+      const supportsTools = modelSupportsTools(model);
+      if (supportsTools && !env.TAVILY_API_KEY) {
+        // Not fatal: the tool loop degrades to a recoverable search failure
+        // and the model still answers from its own knowledge.
+        console.warn(
+          "[grade-ai] TAVILY_API_KEY is missing; web_search will fail recoverably for",
+          model,
+        );
+      }
+      return new CloudflareProvider(
+        env.AI,
+        env.TAVILY_API_KEY,
+        supportsTools,
+      );
+    }
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }

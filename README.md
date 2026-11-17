@@ -131,12 +131,13 @@ All endpoints return JSON with shape `{ status, message, data, error }`, unless 
 
 - `{"type":"delta","delta":"..."}` — partial response text
 - `{"type":"thinking","thinking":"..."}` — model reasoning (when available)
+- `{"type":"tool","tool":{"name":"web_search","status":"executing|completed|failed"}}` — web search lifecycle (Groq and tool-capable Cloudflare models)
 - `{"type":"usage","usage":{"promptTokens":N,"completionTokens":N,"totalTokens":N}}` — token usage
 - `{"type":"warning","message":"..."}` — non-fatal warnings (e.g. truncation/context)
 - `{"type":"done"}` — stream complete
 - `{"type":"error","message":"..."}` — stream error
 
-> Cloudflare provider note (MVP): uses Workers AI via the `AI` binding (`agents/models/ai-sdk` + Vercel AI SDK) for plain chat streaming. Groq/Gemini-specific web-search/grounding flows are not yet implemented for Cloudflare models. Workers AI must be enabled for the account and selected `@cf/*` models must be available.
+> Cloudflare provider note: uses Workers AI via the `AI` binding (`agents/models/ai-sdk` + Vercel AI SDK). Models vetted for tool calling (for example `@cf/zai-org/glm-4.7-flash` and `@cf/moonshotai/kimi-k2.5`) get the same Tavily-backed `web_search` tool loop as Groq; other `@cf/*` models stream plain chat without tools. Gemini-style Google grounding and `[[IMAGE_SEARCH]]` markers are not implemented for Cloudflare. Workers AI must be enabled for the account and the selected `@cf/*` models must be available.
 
 ### Academic Levels
 
@@ -171,7 +172,7 @@ All endpoints return JSON with shape `{ status, message, data, error }`, unless 
 - Development config via `wrangler.toml` + `.dev.vars` (local env variables).
 - Two Neon PostgreSQL databases (Users + CNotes) accessed via Drizzle ORM with `@neondatabase/serverless`.
 - Convex backend for AI chat history, user profiles, and academic level data.
-- AI inference via Groq SDK, Google Gemini API, and Cloudflare Workers AI (binding).
+- AI inference via Groq SDK, Google Gemini API, and Cloudflare Workers AI (binding). Groq and tool-capable Cloudflare models support Tavily-backed web search; Gemini uses native Google Search grounding.
 
 **Required environment variables** (set in `.dev.vars` for local, `wrangler secret` for production):
 

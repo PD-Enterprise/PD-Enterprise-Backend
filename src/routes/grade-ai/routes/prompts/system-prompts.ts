@@ -82,6 +82,7 @@ export function getSystemPrompt(
   mode: "socratic" | "direct",
   academicLevel: string,
   provider: "groq" | "gemini" | "cloudflare" = "groq",
+  supportsTools: boolean = true,
 ): string {
   const academicLevelAdded = `{UserAcademicLevel: ${academicLevel}}`;
 
@@ -92,13 +93,23 @@ export function getSystemPrompt(
 
   const withBudget = `${base}\n${OUTPUT_BUDGET_INSTRUCTIONS}`;
 
-  if (provider !== "gemini") return withBudget;
+  if (provider === "gemini") {
+    // Gemini uses native Google Search grounding for factual text plus a
+    // dedicated `image_search` function for verified images, so swap the
+    // Groq `web_search` tool section for the Gemini equivalent.
+    return withBudget.replace(
+      /Web search tool:[\s\S]*?(?=\nImages:)/,
+      GEMINI_SEARCH_INSTRUCTIONS + "\n",
+    );
+  }
 
-  // Gemini uses native Google Search grounding for factual text plus a
-  // dedicated `image_search` function for verified images, so swap the
-  // Groq `web_search` tool section for the Gemini equivalent.
-  return withBudget.replace(
-    /Web search tool:[\s\S]*?(?=\nImages:)/,
-    GEMINI_SEARCH_INSTRUCTIONS + "\n",
-  );
+  // Non-tool models (e.g. Cloudflare models without verified tool support)
+  // must not be told to call a tool they don't have, or they emit
+  // hallucinated tool syntax. Drop the web-search and image sections that
+  // depend on tool results.
+  if (!supportsTools) {
+    return withBudget.replace(/Web search tool:[\s\S]*?(?=Your goal is)/, "");
+  }
+
+  return withBudget;
 }

@@ -3,45 +3,47 @@ type ModelList = {
   modelName: string;
   modelString: string;
   description: string;
+  /**
+   * Whether the model supports native tool/function calling over its
+   * provider's SDK path. When false or omitted, the provider streams plain
+   * chat without attaching tools (and the system prompt omits tool
+   * instructions). Only vetted Cloudflare models are marked true.
+   */
+  supportsTools?: boolean;
 };
 
 export const modelList: ModelList[] = [
   {
     providerName: "groq",
-    modelName: "GPT OSS 120B",
+    modelName: "GPT-OSS 120B",
     modelString: "openai/gpt-oss-120b",
-    description:
-      "Best for advanced coding, analysis, and detailed conversations.",
+    description: "Best for advanced coding, analysis, and detailed conversations.",
   },
   {
     providerName: "groq",
-    modelName: "GPT OSS 20B",
+    modelName: "GPT-OSS 20B",
     modelString: "openai/gpt-oss-20b",
     description: "Balanced speed and quality for coding and general use.",
   },
   {
-    providerName: "gemini",
-    modelName: "Gemini 2.1 Flash",
-    modelString: "gemini-2.1-flash",
-    description: "Best for advanced coding, analysis, and detailed conversations.",
-  },
-  {
-    providerName: "gemini",
-    modelName: "Gemini 2.1 Flash Lite",
-    modelString: "gemini-2.1-flash-lite",
-    description: "Best for advanced coding, analysis, and detailed conversations.",
-  },
-  {
     providerName: "cloudflare",
-    modelName: "Llama 3.1 8B Instruct",
-    modelString: "@cf/meta/llama-3.1-8b-instruct",
-    description: "Fast general-purpose chat model on Workers AI.",
-  },
-  {
-    providerName: "cloudflare",
-    modelName: "Llama 3.3 70B Instruct FP8 Fast",
+    modelName: "Llama 3.3 70B",
     modelString: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    description: "Higher quality reasoning and instruction following on Workers AI.",
+    description: "Higher quality reasoning and instruction following.",
+  },
+  {
+    providerName: "cloudflare",
+    modelName: "GLM 4.7 Flash",
+    modelString: "@cf/zai-org/glm-4.7-flash",
+    description: "Fast multilingual text generation model with tool calling support.",
+    supportsTools: true,
+  },
+  {
+    providerName: "cloudflare",
+    modelName: "Kimi K2.5",
+    modelString: "@cf/moonshotai/kimi-k2.5",
+    description: "Frontier-scale model with multi-turn tool calling and vision inputs.",
+    supportsTools: true,
   },
 ];
 
@@ -49,3 +51,31 @@ export const modelList: ModelList[] = [
 export const ALLOWED_CHAT_MODELS = new Map(
   modelList.map((m) => [m.modelString, m.providerName]),
 );
+
+/** Cloudflare (and any future) models vetted for native tool calling. */
+const TOOL_CAPABLE_MODELS = new Set(
+  modelList.filter((m) => m.supportsTools).map((m) => m.modelString),
+);
+
+/**
+ * Whether a model is vetted for native tool/function calling. Unknown or
+ * unmarked models return false so tools stay off by default.
+ */
+export function modelSupportsTools(modelString: string | undefined): boolean {
+  if (!modelString) return false;
+  return TOOL_CAPABLE_MODELS.has(modelString);
+}
+
+/**
+ * Whether a provider/model pair should attach tools and include tool
+ * instructions. Groq always supports tools; Gemini uses native grounding
+ * (handled separately); Cloudflare depends on the per-model capability flag.
+ */
+export function providerSupportsTools(
+  provider: "groq" | "gemini" | "cloudflare",
+  modelString: string | undefined,
+): boolean {
+  if (provider === "groq") return true;
+  if (provider === "gemini") return true;
+  return modelSupportsTools(modelString);
+}

@@ -2,12 +2,15 @@ import type { ChatCompletionTool } from "groq-sdk/resources/chat/completions";
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 
+/** Shared description for the `web_search` tool across providers. */
+export const WEB_SEARCH_DESCRIPTION =
+  "Search the web for current, factual, or verifiable information. Use it when the question depends on recent events, statistics, definitions, or specific facts you are unsure about. Call this function with a single JSON object argument that has one required property: a 'query' string, for example {\"query\": \"current world population\"}. Emit the call as a structured function call, never as plain text or XML.";
+
 export const WEB_SEARCH_TOOL: ChatCompletionTool = {
   type: "function",
   function: {
     name: "web_search",
-    description:
-      "Search the web for current, factual, or verifiable information. Use it when the question depends on recent events, statistics, definitions, or specific facts you are unsure about. Call this function with a single JSON object argument that has one required property: a 'query' string, for example {\"query\": \"current world population\"}. Emit the call as a structured function call, never as plain text or XML.",
+    description: WEB_SEARCH_DESCRIPTION,
     parameters: {
       type: "object",
       properties: {
