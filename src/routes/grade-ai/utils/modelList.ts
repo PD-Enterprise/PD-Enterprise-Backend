@@ -15,13 +15,14 @@ type ModelList = {
 export const modelList: ModelList[] = [
   {
     providerName: "groq",
-    modelName: "GPT-OSS 120B",
+    modelName: "GPT OSS 120B",
     modelString: "openai/gpt-oss-120b",
-    description: "Best for advanced coding, analysis, and detailed conversations.",
+    description:
+      "Best for advanced coding, analysis, and detailed conversations.",
   },
   {
     providerName: "groq",
-    modelName: "GPT-OSS 20B",
+    modelName: "GPT OSS 20B",
     modelString: "openai/gpt-oss-20b",
     description: "Balanced speed and quality for coding and general use.",
   },
@@ -35,9 +36,10 @@ export const modelList: ModelList[] = [
     providerName: "cloudflare",
     modelName: "GLM 4.7 Flash",
     modelString: "@cf/zai-org/glm-4.7-flash",
-    description: "Fast multilingual text generation model with tool calling support.",
+    description:
+      "Fast multilingual text generation model with tool calling support.",
     supportsTools: true,
-  }
+  },
 ];
 
 /** modelString -> provider allowlist. Single source of truth for validation. */
